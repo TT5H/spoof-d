@@ -274,35 +274,31 @@ function setInterfaceMAC (device, mac, port) {
 
   if (process.platform === 'darwin') {
     if (isWirelessPort) {
-      // Turn on the device, assuming it's an airport device.
+      // Disassociate from wifi networks before changing MAC.
+      // On modern macOS (Sequoia+), the airport CLI tool no longer exists,
+      // so we use networksetup to power off WiFi as the disassociation method.
       try {
-        cp.execSync(quote(['networksetup', '-setairportpower', device, 'on']))
+        cp.execSync(quote(['networksetup', '-setairportpower', device, 'off']))
       } catch (err) {
-        throw new Error('Unable to power on wifi device')
+        throw new Error('Unable to disassociate from wifi networks')
       }
     }
 
-    // For some reason this seems to be required even when changing a non-airport device.
+    // Bring interface down, change MAC, bring it back up
     try {
-      cp.execSync(quote([PATH_TO_AIRPORT, '-z']))
-    } catch (err) {
-      throw new Error('Unable to disassociate from wifi networks')
-    }
-
-    // Change the MAC.
-    try {
+      cp.execSync(quote(['ifconfig', device, 'down']))
       cp.execSync(quote(['ifconfig', device, 'ether', mac]))
+      cp.execSync(quote(['ifconfig', device, 'up']))
     } catch (err) {
       throw new Error('Unable to change MAC address')
     }
 
-    // Restart airport so it will associate with known networks (if any)
+    // Power WiFi back on so it will associate with known networks (if any)
     if (isWirelessPort) {
       try {
-        cp.execSync(quote(['networksetup', '-setairportpower', device, 'off']))
         cp.execSync(quote(['networksetup', '-setairportpower', device, 'on']))
       } catch (err) {
-        throw new Error('Unable to set restart wifi device')
+        throw new Error('Unable to restart wifi device')
       }
     }
   } else if (process.platform === 'linux') {
