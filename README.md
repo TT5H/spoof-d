@@ -1,6 +1,6 @@
 # spoofy
 
-> **⚠️ Work in Progress**: This is a modernized fork of the original `spoof` project, updated for compatibility with modern macOS (Sequoia 15.4+, Tahoe 26+). **Currently only macOS is fully supported.** Modern Windows and Linux support is planned but not yet implemented. Use at your own risk.
+> **⚠️ Work in Progress**: This is a modernized fork of the original `spoof` project, updated for compatibility with modern macOS (Sequoia 15.4+, Tahoe 26+). **Currently only macOS is fully supported.** Modern Windows and Linux support is planned but not yet implemented.
 
 ### Easily spoof your MAC address on macOS!
 
@@ -80,6 +80,7 @@ spoof list
 ```
 
 Output:
+
 ```
 - "Ethernet" on device "en4" with MAC address 70:56:51:BE:B3:00
 - "Wi-Fi" on device "en0" with MAC address 70:56:51:BE:B3:01 currently set to 70:56:51:BE:B3:02
@@ -92,25 +93,27 @@ Output:
 spoof list --wifi
 ```
 
-### Randomize MAC address *(requires root)*
+### Randomize MAC address _(requires root)_
 
 Using hardware port name:
+
 ```bash
 sudo spoof randomize wi-fi
 ```
 
 Or using device name:
+
 ```bash
 sudo spoof randomize en0
 ```
 
-### Set specific MAC address *(requires root)*
+### Set specific MAC address _(requires root)_
 
 ```bash
 sudo spoof set 00:11:22:33:44:55 en0
 ```
 
-### Reset to original MAC address *(requires root)*
+### Reset to original MAC address _(requires root)_
 
 ```bash
 sudo spoof reset wi-fi
@@ -121,11 +124,13 @@ sudo spoof reset wi-fi
 ## Platform Support
 
 ### macOS ✅
+
 - ✅ **Fully supported** and tested on macOS Tahoe 26.2
 - ✅ Works on macOS Sequoia 15.4+
 - ⚠️ Older versions may work but are untested
 
 ### Linux 🚧
+
 **Coming soon!** Linux support is planned but not yet implemented in this fork.
 
 Running MAC change commands on Linux will display a "coming soon" message. You can still use `spoof list` to view network interfaces.
@@ -133,6 +138,7 @@ Running MAC change commands on Linux will display a "coming soon" message. You c
 The upcoming Linux implementation will use modern `ip link` commands instead of the deprecated `ifconfig` tool.
 
 ### Windows 🚧
+
 **Coming soon!** Windows support is planned but not yet implemented in this fork.
 
 Running MAC change commands on Windows will display a "coming soon" message. You can still use `spoof list` to view network interfaces.
