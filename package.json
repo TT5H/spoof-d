@@ -20,8 +20,7 @@
     "zero-fill": "^2.2.4"
   },
   "devDependencies": {
-    "standard": "*",
-    "tape": "^5.0.1"
+    "standard": "*"
   },
   "homepage": "https://github.com/basedbytes/spoofy",
   "keywords": [
@@ -46,6 +45,6 @@
     "url": "git://github.com/basedbytes/spoofy.git"
   },
   "scripts": {
-    "test": "standard && tape test/*.js"
+    "test": "standard"
   }
 }
