@@ -1,8 +1,14 @@
 {
   "name": "spoofy",
   "description": "Easily spoof your MAC address on modern macOS",
-  "version": "2.0.4",
+  "version": "1.0.0",
   "bin": "./bin/cmd.js",
+  "files": [
+    "index.js",
+    "bin/",
+    "LICENSE",
+    "README.md"
+  ],
   "bugs": {
     "url": "https://github.com/basedbytes/spoofy/issues"
   },
