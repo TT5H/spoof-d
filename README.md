@@ -58,25 +58,25 @@ npm install -g .
 4. Now, print out all your network devices:
 
    ```bash
-   spoof list
+   spoofy list
    ```
 
 5. Find the device you want to change. Wi-Fi is usually called `en0` on modern Macs. Then run:
 
    ```bash
-   sudo spoof randomize en0
+   sudo spoofy randomize en0
    ```
 
    You may need to reconnect to your Wi-Fi network afterward. Your MAC address is now changed!
 
 ## Usage
 
-You can always see up-to-date usage instructions by running `spoof --help`.
+You can always see up-to-date usage instructions by running `spoofy --help`.
 
 ### List available devices
 
 ```bash
-spoof list
+spoofy list
 ```
 
 Output:
@@ -90,7 +90,7 @@ Output:
 ### List only Wi-Fi devices
 
 ```bash
-spoof list --wifi
+spoofy list --wifi
 ```
 
 ### Randomize MAC address _(requires root)_
@@ -98,25 +98,25 @@ spoof list --wifi
 Using hardware port name:
 
 ```bash
-sudo spoof randomize wi-fi
+sudo spoofy randomize wi-fi
 ```
 
 Or using device name:
 
 ```bash
-sudo spoof randomize en0
+sudo spoofy randomize en0
 ```
 
 ### Set specific MAC address _(requires root)_
 
 ```bash
-sudo spoof set 00:11:22:33:44:55 en0
+sudo spoofy set 00:11:22:33:44:55 en0
 ```
 
 ### Reset to original MAC address _(requires root)_
 
 ```bash
-sudo spoof reset wi-fi
+sudo spoofy reset wi-fi
 ```
 
 **Note**: On macOS, restarting your computer will also reset your MAC address to the original hardware address.
@@ -133,7 +133,7 @@ sudo spoof reset wi-fi
 
 **Coming soon!** Linux support is planned but not yet implemented in this fork.
 
-Running MAC change commands on Linux will display a "coming soon" message. You can still use `spoof list` to view network interfaces.
+Running MAC change commands on Linux will display a "coming soon" message. You can still use `spoofy list` to view network interfaces.
 
 The upcoming Linux implementation will use modern `ip link` commands instead of the deprecated `ifconfig` tool.
 
@@ -141,7 +141,7 @@ The upcoming Linux implementation will use modern `ip link` commands instead of 
 
 **Coming soon!** Windows support is planned but not yet implemented in this fork.
 
-Running MAC change commands on Windows will display a "coming soon" message. You can still use `spoof list` to view network interfaces.
+Running MAC change commands on Windows will display a "coming soon" message. You can still use `spoofy list` to view network interfaces.
 
 The upcoming Windows implementation will use PowerShell for more reliable adapter management.
 
