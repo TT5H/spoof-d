@@ -1,12 +1,10 @@
 # spoofy
 
-> **⚠️ Work in Progress**: This is a modernized fork of the original `spoof` project, updated for compatibility with modern macOS versions (Sequoia 15.4+, Tahoe 26+). This build is not stable and may contain bugs as we continue porting to newer environments. Use at your own risk.
+> **⚠️ Work in Progress**: This is a modernized fork of the original `spoof` project, updated for compatibility with modern macOS (Sequoia 15.4+, Tahoe 26+). **Currently only macOS is fully supported.** Modern Windows and Linux support is planned but not yet implemented. Use at your own risk.
 
-### Easily spoof your MAC address in macOS, Windows, & Linux!
+### Easily spoof your MAC address on macOS!
 
-A Node.js utility for changing MAC addresses across different operating systems.
-
-![anonymous](img/img.png)
+A Node.js utility for changing MAC addresses. Currently focused on reliable macOS support with Windows and Linux support coming soon.
 
 ## About This Fork
 
