@@ -1,56 +1,108 @@
-# spoofy
+# spoof-d
 
-[![npm version](https://img.shields.io/npm/v/spoofy)](https://www.npmjs.com/package/spoofy)
-[![license](https://img.shields.io/npm/l/spoofy)](LICENSE)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GitHub forks](https://img.shields.io/github/forks/TT5H/spoof-d)](https://github.com/TT5H/spoof-d/network)
+[![GitHub stars](https://img.shields.io/github/stars/TT5H/spoof-d)](https://github.com/TT5H/spoof-d/stargazers)
 
-> **⚠️ Work in Progress**: This is a modernized fork of the original `spoof` project, updated for compatibility with modern macOS (Sequoia 15.4+, Tahoe 26+). **Currently only macOS is fully supported.** Modern Windows and Linux support is planned but not yet implemented.
+> **✅ Cross-Platform Support**: This is a modernized fork of the original `spoof` project, updated for compatibility with modern macOS (Sequoia 15.4+, Tahoe 26+), Windows 10/11, and Linux. All platforms are now fully supported!
 
-### Easily spoof your MAC address on macOS!
+### Easily spoof your MAC address on macOS, Windows, and Linux!
 
-A Node.js utility for changing MAC addresses. Currently focused on reliable macOS support with Windows and Linux support coming soon.
+A Node.js utility for changing MAC addresses across all major platforms. Features reliable macOS support, modern Windows PowerShell integration, and Linux `ip link` commands. This fork includes enhanced error handling, automatic verification, retry logic, and improved cross-platform compatibility.
 
 ## About This Fork
 
-This repository is a fork of the original `spoof` project, updated to work with modern macOS versions where Apple has removed the `airport` CLI tool and introduced new WiFi driver restrictions.
+This repository ([TT5H/spoof-d](https://github.com/TT5H/spoof-d)) is a fork of [basedbytes/spoofy](https://github.com/basedbytes/spoofy), which itself is a fork of the original `spoof` project. This fork extends the functionality with full cross-platform support and enhanced features.
 
 ### What's Changed
 
+- **✅ Full Cross-Platform Support**: Complete Windows 10/11 and Linux support (not just macOS)
 - **Modern macOS Support**: Fixed MAC spoofing for macOS Sequoia 15.4+ and Tahoe 26+
+- **Windows Support**: Full Windows 10/11 support using PowerShell and registry methods with automatic fallback
+- **Linux Support**: Modern Linux support using `ip link` commands (replaces deprecated `ifconfig`)
+- **Enhanced Error Handling**: Custom error classes with actionable suggestions and better error messages
+- **Automatic Verification**: Verifies MAC address changes after setting them
+- **Retry Logic**: Automatic retry with exponential backoff for transient failures
+- **Timeout Handling**: Prevents hanging operations with configurable timeouts
+- **Better Validation**: Comprehensive input validation with helpful error messages
 - **Removed `airport` dependency**: The deprecated `airport -z` command has been replaced with modern `networksetup` commands
 - **Timing-sensitive MAC changes**: WiFi MAC addresses are now changed in the brief window after power-on but before network connection
-- **Better error handling**: Ensures WiFi interface is always restored, even if MAC change fails
+- **Improved interface detection**: Better cross-platform interface detection using modern system commands
 - **Cleaner codebase**: Removed deprecated code paths and unnecessary constants
+
+## Key Features
+
+### Enhanced Error Handling
+- **Custom error classes** with specific error types (ValidationError, PermissionError, NetworkError, etc.)
+- **Actionable suggestions** provided with every error message
+- **Better error context** to help diagnose issues quickly
+
+### Reliability Features
+- **Automatic verification** of MAC address changes after setting them
+- **Retry logic** with exponential backoff for transient failures
+- **Timeout handling** to prevent hanging operations
+- **Comprehensive validation** of inputs before attempting changes
+
+### Cross-Platform Excellence
+- **Windows**: PowerShell integration with registry fallback
+- **macOS**: Modern networksetup commands with WiFi timing handling
+- **Linux**: Modern ip link commands with ifconfig fallback
+- **Unified API** across all platforms
 
 ## Installation
 
-### From npm
+### From source (recommended)
+
+```bash
+git clone https://github.com/TT5H/spoof-d.git
+cd spoof-d
+npm install
+npm install -g .
+```
+
+After installation, you can use the `spoofy` command from anywhere.
+
+### From npm (if published)
 
 ```bash
 npm install -g spoofy
 ```
 
-### From source
-
-```bash
-git clone https://github.com/basedbytes/spoofy.git
-cd spoofy
-npm install
-npm install -g .
-```
+**Note**: This fork may not be published to npm yet. Install from source for the latest version.
 
 ## Quick Start
 
-List network interfaces:
+### List network interfaces
+
+**macOS/Linux:**
 ```bash
 spoofy list
 ```
 
-Randomize MAC address (WiFi is typically `en0` on macOS):
+**Windows (run PowerShell as Administrator):**
+```powershell
+spoofy list
+```
+
+### Randomize MAC address
+
+**macOS (WiFi is typically `en0`):**
 ```bash
 sudo spoofy randomize en0
 ```
 
-**Note:** WiFi will disconnect briefly and may need to reconnect to networks.
+**Windows:**
+```powershell
+# Run PowerShell as Administrator
+spoofy randomize "Ethernet"
+```
+
+**Linux:**
+```bash
+sudo spoofy randomize eth0
+```
+
+**Note:** WiFi will disconnect briefly and may need to reconnect to networks. On Windows, ensure you're running as Administrator.
 
 ## Usage
 
@@ -111,22 +163,38 @@ sudo spoofy reset wi-fi
 - ✅ **Fully supported** and tested on macOS Tahoe 26.2
 - ✅ Works on macOS Sequoia 15.4+
 - ⚠️ Older versions may work but are untested
+- Uses `networksetup` and `ifconfig` commands
+- Special handling for WiFi interfaces on modern macOS
 
-### Linux 🚧
+### Windows ✅
 
-**Coming soon!** Linux support is planned but not yet implemented in this fork.
+- ✅ **Fully supported** on Windows 10 and Windows 11
+- ✅ Uses PowerShell `Get-NetAdapter` and `Set-NetAdapter` commands
+- ✅ Falls back to registry method for compatibility
+- ⚠️ Requires Administrator privileges (run PowerShell/CMD as Administrator)
+- Some network adapters may not support MAC address changes (hardware limitation)
 
-Running MAC change commands on Linux will display a "coming soon" message. You can still use `spoofy list` to view network interfaces.
+**Windows Usage:**
+```powershell
+# Run PowerShell or CMD as Administrator
+spoofy list
+spoofy randomize "Ethernet"
+spoofy set 00:11:22:33:44:55 "Wi-Fi"
+```
 
-The upcoming Linux implementation will use modern `ip link` commands instead of the deprecated `ifconfig` tool.
+### Linux ✅
 
-### Windows 🚧
+- ✅ **Fully supported** using modern `ip link` commands
+- ✅ Falls back to `ifconfig` if `ip` command is not available
+- ⚠️ Requires root privileges (use `sudo`)
+- Works with most modern Linux distributions
 
-**Coming soon!** Windows support is planned but not yet implemented in this fork.
-
-Running MAC change commands on Windows will display a "coming soon" message. You can still use `spoofy list` to view network interfaces.
-
-The upcoming Windows implementation will use PowerShell for more reliable adapter management.
+**Linux Usage:**
+```bash
+sudo spoofy list
+sudo spoofy randomize eth0
+sudo spoofy set 00:11:22:33:44:55 wlan0
+```
 
 ## Known Issues
 
@@ -136,16 +204,35 @@ The upcoming Windows implementation will use PowerShell for more reliable adapte
 
 ## Troubleshooting
 
-If you encounter errors:
-
+### macOS
 1. Make sure you're running with `sudo` (required for network changes)
 2. Ensure WiFi is turned on before attempting to change MAC
 3. On modern macOS, you may need to reconnect to WiFi after the change
 4. Try running `networksetup -detectnewhardware` if changes don't take effect
 
+### Windows
+1. **Run as Administrator**: Right-click PowerShell or Command Prompt and select "Run as Administrator"
+2. Some network adapters don't support MAC address changes (hardware limitation)
+3. If `Set-NetAdapter` fails, the tool will automatically try the registry method
+4. You may need to disable and re-enable the adapter manually if changes don't take effect
+5. Check adapter compatibility: Some virtual adapters and certain hardware may not support MAC spoofing
+
+### Linux
+1. Make sure you're running with `sudo` (required for network changes)
+2. Ensure the `ip` command is available (usually in `iproute2` package)
+3. Some network interfaces may be managed by NetworkManager - you may need to disable it temporarily
+4. Virtual interfaces and certain hardware may not support MAC address changes
+
 ## Contributing
 
 This is an active fork. Contributions, bug reports, and feature requests are welcome!
+
+To contribute:
+1. Fork this repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
@@ -153,4 +240,8 @@ MIT License (inherited from original project)
 
 ## Credits
 
-Originally based on the `spoof` project. This fork maintains compatibility with modern operating systems.
+- **This fork**: [TT5H/spoof-d](https://github.com/TT5H/spoof-d) - Enhanced cross-platform support with improved error handling
+- **Parent fork**: [basedbytes/spoofy](https://github.com/basedbytes/spoofy) - Modernized macOS support
+- **Original project**: `spoof` by Feross Aboukhadijeh
+
+This fork maintains compatibility with modern operating systems and extends support to Windows and Linux.

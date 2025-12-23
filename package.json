@@ -1,7 +1,7 @@
 {
   "name": "spoofy",
-  "description": "Cross-platform MAC address spoofing utility (work in progress)",
-  "version": "0.0.3",
+  "description": "Cross-platform MAC address spoofing utility for macOS, Windows, and Linux",
+  "version": "0.1.0",
   "bin": "./bin/cmd.js",
   "files": [
     "index.js",
@@ -10,7 +10,7 @@
     "README.md"
   ],
   "bugs": {
-    "url": "https://github.com/basedbytes/spoofy/issues"
+    "url": "https://github.com/TT5H/spoof-d/issues"
   },
   "dependencies": {
     "chalk": "^4.1.0",
@@ -22,7 +22,7 @@
   "devDependencies": {
     "standard": "*"
   },
-  "homepage": "https://github.com/basedbytes/spoofy",
+  "homepage": "https://github.com/TT5H/spoof-d",
   "keywords": [
     "MAC address",
     "address",
@@ -36,13 +36,18 @@
     "spoofmac",
     "macos",
     "sequoia",
-    "tahoe"
+    "tahoe",
+    "windows",
+    "linux",
+    "cross-platform",
+    "network",
+    "adapter"
   ],
   "license": "MIT",
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "git://github.com/basedbytes/spoofy.git"
+    "url": "git://github.com/TT5H/spoof-d.git"
   },
   "scripts": {
     "test": "standard"
