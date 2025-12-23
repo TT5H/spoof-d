@@ -1,8 +1,10 @@
 {
-  "name": "spoofy",
+  "name": "spoof-d",
   "description": "Cross-platform MAC address spoofing utility for macOS, Windows, and Linux",
   "version": "0.1.0",
-  "bin": "./bin/cmd.js",
+  "bin": {
+    "spoofy": "./bin/cmd.js"
+  },
   "files": [
     "index.js",
     "bin/",

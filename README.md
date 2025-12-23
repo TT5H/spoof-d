@@ -1,5 +1,6 @@
 # spoof-d
 
+[![npm version](https://img.shields.io/npm/v/spoof-d)](https://www.npmjs.com/package/spoof-d)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GitHub forks](https://img.shields.io/github/forks/TT5H/spoof-d)](https://github.com/TT5H/spoof-d/network)
 [![GitHub stars](https://img.shields.io/github/stars/TT5H/spoof-d)](https://github.com/TT5H/spoof-d/stargazers)
@@ -51,7 +52,17 @@ This repository ([TT5H/spoof-d](https://github.com/TT5H/spoof-d)) is a fork of [
 
 ## Installation
 
-### From source (recommended)
+### From npm (recommended)
+
+```bash
+npm install -g spoof-d
+```
+
+After installation, use the `spoofy` command (the package name is `spoof-d`, but the command is still `spoofy`).
+
+After installation, you can use the `spoofy` command from anywhere.
+
+### From source
 
 ```bash
 git clone https://github.com/TT5H/spoof-d.git
@@ -60,15 +71,7 @@ npm install
 npm install -g .
 ```
 
-After installation, you can use the `spoofy` command from anywhere.
-
-### From npm (if published)
-
-```bash
-npm install -g spoofy
-```
-
-**Note**: This fork may not be published to npm yet. Install from source for the latest version.
+This gives you the latest development version with all the latest features.
 
 ## Quick Start
 
