@@ -1,0 +1,10 @@
+{
+  "randomize": {
+    "local": false
+  },
+  "defaults": {
+    "verbose": false,
+    "json": false
+  }
+}
+

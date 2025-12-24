@@ -1,7 +1,7 @@
 {
   "name": "spoof-d",
   "description": "Cross-platform MAC address spoofing utility for macOS, Windows, and Linux",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "bin": {
     "spoofy": "./bin/cmd.js"
   },
@@ -9,7 +9,8 @@
     "index.js",
     "bin/",
     "LICENSE",
-    "README.md"
+    "README.md",
+    ".spoofyrc.example"
   ],
   "bugs": {
     "url": "https://github.com/TT5H/spoof-d/issues"

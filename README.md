@@ -50,6 +50,12 @@ This repository ([TT5H/spoof-d](https://github.com/TT5H/spoof-d)) is a fork of [
 - **Linux**: Modern ip link commands with ifconfig fallback
 - **Unified API** across all platforms
 
+### User Experience Features
+- **Progress indicators** for long-running operations
+- **Verbose mode** (`--verbose`) for detailed debugging output
+- **JSON output** (`--json`) for scripting and automation
+- **Configuration file** support (`.spoofyrc` in home directory)
+
 ## Installation
 
 ### From npm (recommended)
@@ -158,6 +164,62 @@ sudo spoofy reset wi-fi
 ```
 
 **Note**: On macOS, restarting your computer will also reset your MAC address to the original hardware address.
+
+## Advanced Usage
+
+### Verbose Mode
+
+Get detailed debugging information:
+
+```bash
+spoofy list --verbose
+spoofy randomize en0 --verbose
+```
+
+### JSON Output
+
+Output results in JSON format for scripting:
+
+```bash
+spoofy list --json
+spoofy randomize en0 --json
+```
+
+Example JSON output:
+```json
+{
+  "success": true,
+  "device": "en0",
+  "mac": "00:11:22:33:44:55",
+  "message": "MAC address changed successfully"
+}
+```
+
+### Configuration File
+
+Create a configuration file at `~/.spoofyrc` (or `%USERPROFILE%\.spoofyrc` on Windows):
+
+```json
+{
+  "randomize": {
+    "local": true
+  },
+  "defaults": {
+    "verbose": false,
+    "json": false
+  }
+}
+```
+
+The configuration file allows you to set default options that will be used automatically.
+
+### Progress Indicators
+
+Long-running operations show progress indicators:
+
+```bash
+⏳ Changing MAC address... ✓ Successfully set MAC address
+```
 
 ## Platform Support
 
