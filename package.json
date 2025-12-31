@@ -2,7 +2,9 @@
   "name": "spoofy",
   "description": "Cross-platform MAC address and DUID spoofing utility",
   "version": "1.0.0",
-  "bin": "./bin/cmd.js",
+  "bin": {
+    "spoofy": "./bin/cmd.js"
+  },
   "files": [
     "index.js",
     "bin/",
