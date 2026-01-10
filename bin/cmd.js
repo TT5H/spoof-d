@@ -8,6 +8,9 @@ const cp = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const ora = require("ora");
+const history = require("../lib/history");
+const oui = require("../lib/oui");
 
 const argv = minimist(process.argv.slice(2), {
   alias: {
@@ -53,22 +56,51 @@ function outputJSON(data) {
   }
 }
 
+let currentSpinner = null;
+
 function showProgress(message) {
   if (JSON_OUTPUT) return;
-  process.stdout.write(chalk.blue("⏳ ") + message + "... ");
+  if (currentSpinner) {
+    currentSpinner.text = message;
+  } else {
+    currentSpinner = ora(message).start();
+  }
 }
 
 function hideProgress() {
   if (JSON_OUTPUT) return;
-  process.stdout.write("\r" + " ".repeat(80) + "\r");
+  if (currentSpinner) {
+    currentSpinner.stop();
+    currentSpinner = null;
+  }
+}
+
+function successProgress(message) {
+  if (JSON_OUTPUT) return;
+  if (currentSpinner) {
+    currentSpinner.succeed(message);
+    currentSpinner = null;
+  }
+}
+
+function failProgress(message) {
+  if (JSON_OUTPUT) return;
+  if (currentSpinner) {
+    currentSpinner.fail(message);
+    currentSpinner = null;
+  }
 }
 
 function progressStep(step, total, message) {
   if (JSON_OUTPUT) return;
   const percentage = Math.round((step / total) * 100);
-  process.stdout.write(`\r${chalk.blue("⏳")} [${step}/${total}] ${percentage}% - ${message}...`);
+  if (currentSpinner) {
+    currentSpinner.text = `[${step}/${total}] ${percentage}% - ${message}`;
+  } else {
+    currentSpinner = ora(`[${step}/${total}] ${percentage}% - ${message}`).start();
+  }
   if (step === total) {
-    process.stdout.write("\r" + " ".repeat(80) + "\r");
+    currentSpinner = null;
   }
 }
 
@@ -136,6 +168,20 @@ function init() {
   } else if (cmd === "normalize") {
     const mac = argv._[1];
     normalize(mac);
+  } else if (cmd === "info") {
+    const device = argv._[1];
+    info(device);
+  } else if (cmd === "validate") {
+    const mac = argv._[1];
+    validate(mac);
+  } else if (cmd === "vendor") {
+    const mac = argv._[1];
+    vendor(mac);
+  } else if (cmd === "batch") {
+    const file = argv._[1];
+    batch(file);
+  } else if (cmd === "history") {
+    historyCmd();
   } else {
     help();
   }
@@ -171,6 +217,18 @@ ${example}${note}
       spoofy normalize <mac>                   Given a MAC address, normalize it.
       spoofy help                              Shows this help message.
       spoofy version | --version | -v          Show package version.
+
+    Commands:
+      list [--wifi]                     List available devices.
+      set <mac> <devices>...            Set device MAC address.
+      randomize [--local] <devices>...  Set device MAC address randomly.
+      reset <devices>...                Reset device MAC address to default.
+      normalize <mac>                   Normalize a MAC address format.
+      info <device>                     Show detailed interface information.
+      validate <mac>                    Validate MAC address format.
+      vendor <mac>                      Look up vendor from MAC address.
+      batch <file>                      Change multiple interfaces from config file.
+      history                            View MAC address change history.
 
     Options:
       --wifi          Try to only show wireless interfaces.
@@ -299,7 +357,7 @@ function randomize(devices) {
       console.log(chalk.blue("ℹ"), `Generated random MAC address: ${chalk.bold.cyan(mac)}`);
     }
     
-    setMACAddress(it.device, mac, it.port);
+    setMACAddress(it.device, mac, it.port, "randomize");
   });
 }
 
@@ -339,7 +397,7 @@ function reset(devices) {
       console.log(chalk.blue("ℹ"), `Resetting to hardware MAC address: ${chalk.bold.cyan(it.address)}`);
     }
     
-    setMACAddress(it.device, it.address, it.port);
+    setMACAddress(it.device, it.address, it.port, "reset");
   });
 }
 
@@ -395,16 +453,27 @@ function list() {
     
     if (it.address) {
       line.push("with MAC address", chalk.bold.cyan(it.address));
+      const vendor = oui.lookupVendor(it.address);
+      if (vendor && vendor !== "Unknown") {
+        line.push(chalk.gray(`[${vendor}]`));
+      }
     }
     if (it.currentAddress && it.currentAddress !== it.address) {
       line.push("currently set to", chalk.bold.red(it.currentAddress));
+      const currentVendor = oui.lookupVendor(it.currentAddress);
+      if (currentVendor && currentVendor !== "Unknown") {
+        line.push(chalk.gray(`[${currentVendor}]`));
+      }
     }
     console.log(line.join(" "));
   });
 }
 
-function setMACAddress(device, mac, port) {
+function setMACAddress(device, mac, port, operation = "set") {
   logVerbose(`Setting MAC address ${mac} on device ${device}`);
+  
+  // Get current MAC for history
+  const oldMac = spoof.getInterfaceMAC(device);
   
   // Check for admin/root privileges
   if (process.platform === "win32") {
@@ -454,13 +523,17 @@ function setMACAddress(device, mac, port) {
     
     spoof.setInterfaceMAC(device, mac, port);
     
-    hideProgress();
+    // Log to history
+    history.addHistoryEntry(device, oldMac, mac, operation);
+    
+    successProgress("MAC address changed successfully");
     
     if (JSON_OUTPUT) {
       outputJSON({
         success: true,
         device: device,
         mac: mac,
+        oldMac: oldMac,
         message: "MAC address changed successfully",
       });
     } else {
@@ -476,7 +549,7 @@ function setMACAddress(device, mac, port) {
     logVerbose("MAC address change completed successfully");
     // Note: Verification is already done in setInterfaceMAC, so we don't need to do it again here
   } catch (err) {
-    hideProgress();
+    failProgress("Failed to change MAC address");
     if (JSON_OUTPUT) {
       outputJSON({
         success: false,
@@ -489,4 +562,288 @@ function setMACAddress(device, mac, port) {
     // Error is already formatted by handleError in the catch block above
     throw err;
   }
+}
+
+function info(device) {
+  if (!device) {
+    throw new Error("Device name is required. Usage: spoofy info <device>");
+  }
+  
+  logVerbose(`Getting info for device: ${device}`);
+  showProgress("Fetching interface information");
+  
+  const it = spoof.findInterface(device);
+  hideProgress();
+  
+  if (!it) {
+    throw new Error(
+      `Could not find device "${device}". ` +
+      "List available devices using: spoofy list"
+    );
+  }
+  
+  const currentMac = spoof.getInterfaceMAC(device);
+  const vendorInfo = it.address ? oui.getVendorInfo(it.address) : null;
+  const currentVendorInfo = currentMac ? oui.getVendorInfo(currentMac) : null;
+  const deviceHistory = history.getHistoryForDevice(device);
+  
+  if (JSON_OUTPUT) {
+    outputJSON({
+      device: it.device,
+      port: it.port || it.device,
+      description: it.description,
+      hardwareMac: it.address,
+      currentMac: currentMac,
+      hardwareVendor: vendorInfo ? vendorInfo.vendor : null,
+      currentVendor: currentVendorInfo ? currentVendorInfo.vendor : null,
+      status: it.status,
+      platform: process.platform,
+      historyCount: deviceHistory.length,
+      lastChange: deviceHistory[0] || null,
+    });
+    return;
+  }
+  
+  console.log(chalk.bold.cyan("\nInterface Information"));
+  console.log(chalk.gray("─".repeat(50)));
+  console.log(chalk.bold("Device:"), it.device);
+  console.log(chalk.bold("Port:"), it.port || it.device);
+  if (it.description) {
+    console.log(chalk.bold("Description:"), it.description);
+  }
+  if (it.status) {
+    console.log(chalk.bold("Status:"), it.status);
+  }
+  console.log(chalk.bold("Platform:"), process.platform);
+  
+  if (it.address) {
+    console.log(chalk.bold("\nHardware MAC Address:"), chalk.cyan(it.address));
+    if (vendorInfo && vendorInfo.vendor !== "Unknown") {
+      console.log(chalk.bold("Hardware Vendor:"), chalk.green(vendorInfo.vendor));
+    }
+  }
+  
+  if (currentMac) {
+    console.log(chalk.bold("Current MAC Address:"), chalk.cyan(currentMac));
+    if (currentVendorInfo && currentVendorInfo.vendor !== "Unknown") {
+      console.log(chalk.bold("Current Vendor:"), chalk.green(currentVendorInfo.vendor));
+    }
+    if (currentMac !== it.address) {
+      console.log(chalk.yellow("⚠ MAC address has been changed from hardware address"));
+    }
+  }
+  
+  if (deviceHistory.length > 0) {
+    console.log(chalk.bold("\nChange History:"), `(${deviceHistory.length} entries)`);
+    deviceHistory.slice(0, 5).forEach((entry, index) => {
+      const date = new Date(entry.timestamp).toLocaleString();
+      console.log(`  ${index + 1}. ${date} - ${entry.operation}: ${entry.oldMac || "N/A"} → ${entry.newMac}`);
+    });
+    if (deviceHistory.length > 5) {
+      console.log(chalk.gray(`  ... and ${deviceHistory.length - 5} more entries`));
+    }
+  }
+  console.log();
+}
+
+function validate(mac) {
+  if (!mac) {
+    throw new Error("MAC address is required. Usage: spoofy validate <mac>");
+  }
+  
+  logVerbose(`Validating MAC address: ${mac}`);
+  
+  const normalized = spoof.normalize(mac);
+  const isValid = !!normalized;
+  const vendorInfo = normalized ? oui.getVendorInfo(normalized) : null;
+  
+  if (JSON_OUTPUT) {
+    outputJSON({
+      original: mac,
+      normalized: normalized,
+      valid: isValid,
+      vendor: vendorInfo ? vendorInfo.vendor : null,
+      prefix: vendorInfo ? vendorInfo.prefix : null,
+    });
+    return;
+  }
+  
+  if (isValid) {
+    console.log(chalk.green("✓ Valid MAC address"));
+    console.log(chalk.bold("Normalized:"), normalized);
+    if (vendorInfo && vendorInfo.vendor !== "Unknown") {
+      console.log(chalk.bold("Vendor:"), chalk.green(vendorInfo.vendor));
+    }
+  } else {
+    console.log(chalk.red("✗ Invalid MAC address"));
+    console.log(chalk.yellow("Expected format: XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX"));
+  }
+}
+
+function vendor(mac) {
+  if (!mac) {
+    throw new Error("MAC address is required. Usage: spoofy vendor <mac>");
+  }
+  
+  logVerbose(`Looking up vendor for MAC: ${mac}`);
+  
+  const normalized = spoof.normalize(mac);
+  if (!normalized) {
+    throw new Error(`"${mac}" is not a valid MAC address`);
+  }
+  
+  const vendorInfo = oui.getVendorInfo(normalized);
+  
+  if (JSON_OUTPUT) {
+    outputJSON({
+      mac: normalized,
+      vendor: vendorInfo.vendor,
+      prefix: vendorInfo.prefix,
+      found: vendorInfo.vendor !== "Unknown",
+    });
+    return;
+  }
+  
+  console.log(chalk.bold("MAC Address:"), normalized);
+  console.log(chalk.bold("Vendor:"), vendorInfo.vendor !== "Unknown" ? chalk.green(vendorInfo.vendor) : chalk.yellow("Unknown"));
+  console.log(chalk.bold("Prefix:"), vendorInfo.prefix);
+  
+  if (vendorInfo.vendor === "Unknown") {
+    console.log(chalk.gray("\nNote: Vendor not found in database. This may be a locally administered address."));
+  }
+}
+
+function batch(file) {
+  if (!file) {
+    throw new Error("Batch file is required. Usage: spoofy batch <file>");
+  }
+  
+  if (!fs.existsSync(file)) {
+    throw new Error(`Batch file not found: ${file}`);
+  }
+  
+  logVerbose(`Loading batch file: ${file}`);
+  showProgress("Loading batch configuration");
+  
+  let batchConfig;
+  try {
+    const content = fs.readFileSync(file, "utf8");
+    batchConfig = JSON.parse(content);
+  } catch (err) {
+    hideProgress();
+    throw new Error(`Failed to parse batch file: ${err.message}`);
+  }
+  
+  hideProgress();
+  
+  if (!Array.isArray(batchConfig)) {
+    throw new Error("Batch file must contain an array of operations");
+  }
+  
+  logVerbose(`Found ${batchConfig.length} operation(s) in batch file`);
+  
+  const results = [];
+  let successCount = 0;
+  let failCount = 0;
+  
+  batchConfig.forEach((operation, index) => {
+    const step = index + 1;
+    const total = batchConfig.length;
+    progressStep(step, total, `Processing operation ${step}`);
+    
+    try {
+      if (operation.type === "set" && operation.device && operation.mac) {
+        const it = spoof.findInterface(operation.device);
+        if (!it) {
+          throw new Error(`Device not found: ${operation.device}`);
+        }
+        setMACAddress(it.device, operation.mac, it.port, "batch-set");
+        results.push({ success: true, operation: operation, index: index });
+        successCount++;
+      } else if (operation.type === "randomize" && operation.device) {
+        const it = spoof.findInterface(operation.device);
+        if (!it) {
+          throw new Error(`Device not found: ${operation.device}`);
+        }
+        const mac = spoof.randomize(operation.local || false);
+        setMACAddress(it.device, mac, it.port, "batch-randomize");
+        results.push({ success: true, operation: operation, mac: mac, index: index });
+        successCount++;
+      } else if (operation.type === "reset" && operation.device) {
+        const it = spoof.findInterface(operation.device);
+        if (!it) {
+          throw new Error(`Device not found: ${operation.device}`);
+        }
+        if (!it.address) {
+          throw new Error(`No hardware MAC address for: ${operation.device}`);
+        }
+        setMACAddress(it.device, it.address, it.port, "batch-reset");
+        results.push({ success: true, operation: operation, index: index });
+        successCount++;
+      } else {
+        throw new Error(`Invalid operation type or missing parameters: ${JSON.stringify(operation)}`);
+      }
+    } catch (err) {
+      results.push({ success: false, operation: operation, error: err.message, index: index });
+      failCount++;
+    }
+  });
+  
+  progressStep(batchConfig.length, batchConfig.length, "Completed");
+  
+  if (JSON_OUTPUT) {
+    outputJSON({
+      total: batchConfig.length,
+      success: successCount,
+      failed: failCount,
+      results: results,
+    });
+  } else {
+    console.log(chalk.bold("\nBatch Operation Summary:"));
+    console.log(chalk.green(`  ✓ Successful: ${successCount}`));
+    if (failCount > 0) {
+      console.log(chalk.red(`  ✗ Failed: ${failCount}`));
+    }
+    console.log(chalk.bold(`  Total: ${batchConfig.length}`));
+  }
+}
+
+function historyCmd() {
+  const device = argv._[1]; // Optional device filter
+  logVerbose(device ? `Getting history for device: ${device}` : "Getting all history");
+  
+  const allHistory = history.getHistory();
+  const deviceHistory = device ? history.getHistoryForDevice(device) : allHistory;
+  
+  if (deviceHistory.length === 0) {
+    if (JSON_OUTPUT) {
+      outputJSON({ history: [], count: 0 });
+    } else {
+      console.log(chalk.yellow("No history found" + (device ? ` for device "${device}"` : "")));
+    }
+    return;
+  }
+  
+  if (JSON_OUTPUT) {
+    outputJSON({
+      history: deviceHistory,
+      count: deviceHistory.length,
+      device: device || "all",
+    });
+    return;
+  }
+  
+  console.log(chalk.bold.cyan("\nMAC Address Change History"));
+  console.log(chalk.gray("─".repeat(80)));
+  
+  deviceHistory.forEach((entry, index) => {
+    const date = new Date(entry.timestamp).toLocaleString();
+    console.log(chalk.bold(`\n${index + 1}. ${date}`));
+    console.log(`   Device: ${chalk.green(entry.device)}`);
+    console.log(`   Operation: ${chalk.cyan(entry.operation)}`);
+    console.log(`   ${chalk.gray(entry.oldMac || "N/A")} → ${chalk.cyan(entry.newMac)}`);
+    console.log(`   Platform: ${entry.platform}`);
+  });
+  
+  console.log();
 }

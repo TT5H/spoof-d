@@ -6,7 +6,47 @@ module.exports = {
   randomize,
   setInterfaceMAC,
   getInterfaceMAC,
+  validateMAC,
 };
+
+/**
+ * Validates a MAC address format
+ * @param {string} mac
+ * @return {Object} {valid: boolean, normalized: string|null, error: string|null}
+ */
+function validateMAC(mac) {
+  if (!mac || typeof mac !== "string") {
+    return {
+      valid: false,
+      normalized: null,
+      error: "MAC address must be a non-empty string",
+    };
+  }
+  
+  const normalized = normalize(mac);
+  if (!normalized) {
+    return {
+      valid: false,
+      normalized: null,
+      error: "Invalid MAC address format",
+    };
+  }
+  
+  // Check for invalid addresses
+  if (normalized === "00:00:00:00:00:00" || normalized === "FF:FF:FF:FF:FF:FF") {
+    return {
+      valid: false,
+      normalized: normalized,
+      error: "Cannot be all zeros or broadcast address",
+    };
+  }
+  
+  return {
+    valid: true,
+    normalized: normalized,
+    error: null,
+  };
+}
 
 const cp = require("child_process");
 const quote = require("shell-quote").quote;

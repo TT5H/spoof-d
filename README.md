@@ -51,10 +51,13 @@ This repository ([TT5H/spoof-d](https://github.com/TT5H/spoof-d)) is a fork of [
 - **Unified API** across all platforms
 
 ### User Experience Features
-- **Progress indicators** for long-running operations
+- **Progress indicators** with animated spinners for long-running operations
 - **Verbose mode** (`--verbose`) for detailed debugging output
 - **JSON output** (`--json`) for scripting and automation
 - **Configuration file** support (`.spoofyrc` in home directory)
+- **MAC address vendor lookup** using OUI database
+- **Change history tracking** with ability to view and revert changes
+- **Batch operations** for changing multiple interfaces at once
 
 ## Installation
 
@@ -165,6 +168,71 @@ sudo spoofy reset wi-fi
 
 **Note**: On macOS, restarting your computer will also reset your MAC address to the original hardware address.
 
+### Show detailed interface information
+
+```bash
+spoofy info en0
+```
+
+Shows detailed information about an interface including hardware MAC, current MAC, vendor information, and change history.
+
+### Validate MAC address format
+
+```bash
+spoofy validate 00:11:22:33:44:55
+```
+
+Validates and normalizes a MAC address, showing vendor information if available.
+
+### Look up vendor from MAC address
+
+```bash
+spoofy vendor 00:11:22:33:44:55
+```
+
+Looks up the vendor/manufacturer of a MAC address using the OUI database.
+
+### Batch operations
+
+Create a batch file (e.g., `batch.json`):
+
+```json
+[
+  {
+    "type": "randomize",
+    "device": "en0",
+    "local": true
+  },
+  {
+    "type": "set",
+    "device": "eth0",
+    "mac": "00:11:22:33:44:55"
+  },
+  {
+    "type": "reset",
+    "device": "wlan0"
+  }
+]
+```
+
+Then run:
+
+```bash
+sudo spoofy batch batch.json
+```
+
+### View change history
+
+```bash
+spoofy history
+```
+
+View all MAC address changes, or filter by device:
+
+```bash
+spoofy history en0
+```
+
 ## Advanced Usage
 
 ### Verbose Mode
@@ -212,6 +280,22 @@ Create a configuration file at `~/.spoofyrc` (or `%USERPROFILE%\.spoofyrc` on Wi
 ```
 
 The configuration file allows you to set default options that will be used automatically.
+
+### Change History
+
+All MAC address changes are automatically logged to `~/.spoofy_history.json`. You can:
+
+- View history: `spoofy history`
+- View history for specific device: `spoofy history en0`
+- History includes timestamp, device, old MAC, new MAC, and operation type
+
+### Vendor Lookup
+
+The tool includes an OUI (Organizationally Unique Identifier) database to identify device vendors:
+
+- Automatically shown in `spoofy list` output
+- Available via `spoofy vendor <mac>` command
+- Helps identify device types and manufacturers
 
 ### Progress Indicators
 

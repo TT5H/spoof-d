@@ -1,0 +1,16 @@
+[
+  {
+    "type": "randomize",
+    "device": "en0",
+    "local": true
+  },
+  {
+    "type": "set",
+    "device": "eth0",
+    "mac": "00:11:22:33:44:55"
+  },
+  {
+    "type": "reset",
+    "device": "wlan0"
+  }
+]
