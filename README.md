@@ -57,9 +57,10 @@ This repository ([TT5H/spoof-d](https://github.com/TT5H/spoof-d)) is a fork of [
 - **JSON output** (`--json`) for scripting and automation
 - **Configuration file** support (`.spoofyrc` in home directory)
 - **MAC address vendor lookup** using OUI database
-- **Change history tracking** with ability to view and revert changes
+- **Change history tracking** for both MAC and DUID changes with ability to view history
 - **Batch operations** for changing multiple interfaces at once
 - **DUID (DHCPv6) spoofing** for complete IPv6 network identity management
+- **Automatic verification** of DUID changes with retry logic
 
 ## Installation
 
@@ -328,6 +329,18 @@ View all MAC address changes, or filter by device:
 spoofy history en0
 ```
 
+### View DUID change history
+
+```bash
+spoofy duid history
+```
+
+View all DUID changes, or filter by device:
+
+```bash
+spoofy duid history en0
+```
+
 ## Advanced Usage
 
 ### Verbose Mode
@@ -378,11 +391,14 @@ The configuration file allows you to set default options that will be used autom
 
 ### Change History
 
-All MAC address changes are automatically logged to `~/.spoofy_history.json`. You can:
+All MAC address and DUID changes are automatically logged to `~/.spoofy_history.json`. You can:
 
-- View history: `spoofy history`
-- View history for specific device: `spoofy history en0`
-- History includes timestamp, device, old MAC, new MAC, and operation type
+- View MAC history: `spoofy history`
+- View MAC history for specific device: `spoofy history en0`
+- View DUID history: `spoofy duid history`
+- View DUID history for specific device: `spoofy duid history en0`
+- History includes timestamp, device, old/new values, and operation type
+- Both MAC and DUID changes are tracked in the same history file
 
 ### Vendor Lookup
 
