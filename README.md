@@ -21,6 +21,7 @@ This repository ([TT5H/spoof-d](https://github.com/TT5H/spoof-d)) is a fork of [
 - **Modern macOS Support**: Fixed MAC spoofing for macOS Sequoia 15.4+ and Tahoe 26+
 - **Windows Support**: Full Windows 10/11 support using PowerShell and registry methods with automatic fallback
 - **Linux Support**: Modern Linux support using `ip link` commands (replaces deprecated `ifconfig`)
+- **DUID Spoofing**: DHCPv6 DUID spoofing with automatic original preservation and cross-platform support
 - **Enhanced Error Handling**: Custom error classes with actionable suggestions and better error messages
 - **Automatic Verification**: Verifies MAC address changes after setting them
 - **Retry Logic**: Automatic retry with exponential backoff for transient failures
@@ -58,6 +59,7 @@ This repository ([TT5H/spoof-d](https://github.com/TT5H/spoof-d)) is a fork of [
 - **MAC address vendor lookup** using OUI database
 - **Change history tracking** with ability to view and revert changes
 - **Batch operations** for changing multiple interfaces at once
+- **DUID (DHCPv6) spoofing** for complete IPv6 network identity management
 
 ## Installation
 
@@ -167,6 +169,99 @@ sudo spoofy reset wi-fi
 ```
 
 **Note**: On macOS, restarting your computer will also reset your MAC address to the original hardware address.
+
+## DUID Spoofing (DHCPv6)
+
+`spoof-d` also supports DHCPv6 DUID (DHCP Unique Identifier) spoofing for complete IPv6 network identity management.
+
+### What is a DUID?
+
+A DUID (DHCP Unique Identifier) is used in DHCPv6 to uniquely identify a client on IPv6 networks. Unlike MAC addresses which identify network interfaces, DUIDs identify DHCP clients across all interfaces and persist across reboots.
+
+### Key Feature: Original DUID Preservation
+
+The first time you spoof your DUID, your **original DUID is automatically saved** to:
+- macOS: `/var/db/dhcpclient/DUID.original`
+- Linux: `/var/lib/spoofy/duid.original`
+- Windows: `%PROGRAMDATA%\spoofy\duid.original`
+
+This allows you to **restore to your pre-spoofing state** at any time using `spoofy duid restore`.
+
+### Show current DUID
+
+```bash
+spoofy duid list
+```
+
+### Randomize DUID _(requires root)_
+
+Generate and set a random DUID (automatically saves your original on first use):
+
+```bash
+sudo spoofy duid randomize en0
+```
+
+You can specify the DUID type:
+
+```bash
+sudo spoofy duid randomize en0 --type=LLT
+```
+
+### Set specific DUID _(requires root)_
+
+```bash
+sudo spoofy duid set 00:03:00:01:aa:bb:cc:dd:ee:ff en0
+```
+
+### Sync DUID to current MAC _(requires root)_
+
+Match DUID to the current MAC address of an interface (useful after MAC spoofing):
+
+```bash
+sudo spoofy duid sync en0
+```
+
+With specific type:
+
+```bash
+sudo spoofy duid sync en0 --type=LLT
+```
+
+**Typical workflow for complete identity spoofing:**
+
+```bash
+sudo spoofy randomize en0      # Spoof MAC first
+sudo spoofy duid sync en0      # Then sync DUID to match
+```
+
+This ensures both layers show the same spoofed identity on IPv6 networks.
+
+### Restore to original DUID _(requires root)_
+
+Return to your original (pre-spoofing) DUID:
+
+```bash
+sudo spoofy duid restore en0
+```
+
+### Reset DUID _(requires root)_
+
+Delete current DUID and let the system generate a NEW random one:
+
+```bash
+sudo spoofy duid reset en0
+```
+
+**Important**: `reset` generates a NEW DUID, while `restore` returns to your ORIGINAL.
+
+### DUID Types
+
+| Type | Name | Description |
+|------|------|-------------|
+| 1 | DUID-LLT | Link-layer address + timestamp (most common) |
+| 2 | DUID-EN | Enterprise number + identifier |
+| 3 | DUID-LL | Link-layer address only (default) |
+| 4 | DUID-UUID | UUID-based identifier |
 
 ### Show detailed interface information
 

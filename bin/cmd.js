@@ -11,6 +11,7 @@ const os = require("os");
 const ora = require("ora");
 const history = require("../lib/history");
 const oui = require("../lib/oui");
+const duidCli = require("../lib/duid-cli");
 
 const argv = minimist(process.argv.slice(2), {
   alias: {
@@ -182,6 +183,8 @@ function init() {
     batch(file);
   } else if (cmd === "history") {
     historyCmd();
+  } else if (cmd === "duid") {
+    duidCli.run(argv._.slice(1), VERBOSE, JSON_OUTPUT);
   } else {
     help();
   }
@@ -229,6 +232,7 @@ ${example}${note}
       vendor <mac>                      Look up vendor from MAC address.
       batch <file>                      Change multiple interfaces from config file.
       history                            View MAC address change history.
+      duid <command>                    DHCPv6 DUID spoofing commands (see: spoofy duid help).
 
     Options:
       --wifi          Try to only show wireless interfaces.
