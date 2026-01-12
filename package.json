@@ -1,6 +1,6 @@
 {
   "name": "spoof-d",
-  "description": "Cross-platform MAC address spoofing utility for macOS, Windows, and Linux",
+  "description": "Cross-platform MAC address and DUID spoofing utility for macOS, Windows, and Linux",
   "version": "0.4.0",
   "bin": {
     "spoofy": "bin/cmd.js"
@@ -40,6 +40,10 @@
     "spoof",
     "spoof mac address",
     "spoofmac",
+    "duid",
+    "dhcpv6",
+    "ipv6",
+    "network",
     "macos",
     "sequoia",
     "tahoe",

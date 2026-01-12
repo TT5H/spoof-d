@@ -7,9 +7,9 @@
 
 > **✅ Cross-Platform Support**: This is a modernized fork of the original `spoof` project, updated for compatibility with modern macOS (Sequoia 15.4+, Tahoe 26+), Windows 10/11, and Linux. All platforms are now fully supported!
 
-### Easily spoof your MAC address on macOS, Windows, and Linux!
+### Easily spoof your MAC address and DUID on macOS, Windows, and Linux!
 
-A Node.js utility for changing MAC addresses across all major platforms. Features reliable macOS support, modern Windows PowerShell integration, and Linux `ip link` commands. This fork includes enhanced error handling, automatic verification, retry logic, and improved cross-platform compatibility.
+A Node.js utility for changing MAC addresses and DHCPv6 DUIDs across all major platforms. Features reliable macOS support, modern Windows PowerShell integration, and Linux `ip link` commands. This fork includes enhanced error handling, automatic verification, retry logic, and improved cross-platform compatibility.
 
 ## About This Fork
 
@@ -173,7 +173,11 @@ sudo spoofy reset wi-fi
 
 ## DUID Spoofing (DHCPv6)
 
+<<<<<<< HEAD
 `spoof-d` also supports DHCPv6 DUID (DHCP Unique Identifier) spoofing for complete IPv6 network identity management.
+=======
+spoofy also supports DHCPv6 DUID (DHCP Unique Identifier) spoofing for complete IPv6 network identity management.
+>>>>>>> upstream/master
 
 ### What is a DUID?
 
@@ -183,8 +187,13 @@ A DUID (DHCP Unique Identifier) is used in DHCPv6 to uniquely identify a client 
 
 The first time you spoof your DUID, your **original DUID is automatically saved** to:
 - macOS: `/var/db/dhcpclient/DUID.original`
+<<<<<<< HEAD
 - Linux: `/var/lib/spoofy/duid.original`
 - Windows: `%PROGRAMDATA%\spoofy\duid.original`
+=======
+- Linux: `/var/lib/spoofy/duid.original` *(planned)*
+- Windows: `%PROGRAMDATA%\spoofy\duid.original` *(planned)*
+>>>>>>> upstream/master
 
 This allows you to **restore to your pre-spoofing state** at any time using `spoofy duid restore`.
 
@@ -264,6 +273,7 @@ sudo spoofy duid reset en0
 | 3 | DUID-LL | Link-layer address only (default) |
 | 4 | DUID-UUID | UUID-based identifier |
 
+<<<<<<< HEAD
 ### Show detailed interface information
 
 ```bash
@@ -414,6 +424,79 @@ Long-running operations show progress indicators:
 
 ```bash
 ⏳ Changing MAC address... ✓ Successfully set MAC address
+=======
+### Programmatic Usage
+
+```javascript
+const spoofy = require('spoofy');
+
+// Get current DUID
+const current = spoofy.duid.getCurrentDUID();
+console.log('Current DUID:', spoofy.duid.formatDUID(current));
+
+// Parse DUID info
+const info = spoofy.duid.parseDUID(current);
+console.log('Type:', info.typeName);
+console.log('MAC:', info.lladdr);
+
+// Check if original is stored
+if (spoofy.duid.hasOriginalDUID()) {
+  const original = spoofy.duid.getOriginalDUID();
+  console.log('Original DUID:', spoofy.duid.formatDUID(original));
+}
+
+// Generate a random DUID
+const newDuid = spoofy.duid.generateDUID(spoofy.duid.DUID_TYPES.DUID_LL);
+console.log('Generated:', spoofy.duid.formatDUID(newDuid));
+
+// Set DUID (requires root) - automatically saves original on first call
+spoofy.duid.setDUID(newDuid, 'en0');
+
+// Randomize DUID
+spoofy.duid.randomizeDUID(spoofy.duid.DUID_TYPES.DUID_LLT, 'en0');
+
+// Sync DUID to current MAC address
+spoofy.duid.syncDUID('en0', spoofy.duid.DUID_TYPES.DUID_LL);
+
+// Restore to original DUID
+spoofy.duid.restoreDUID('en0');
+```
+
+### Combined MAC + DUID Spoofing
+
+For complete identity change on IPv6 networks, you should change both MAC and DUID.
+
+**Recommended workflow using sync:**
+
+```bash
+sudo spoofy randomize en0      # Spoof MAC first
+sudo spoofy duid sync en0      # Sync DUID to match spoofed MAC
+```
+
+The `sync` command automatically matches the DUID to your current (spoofed) MAC address.
+
+**Alternative - randomize both separately:**
+
+```bash
+sudo spoofy randomize en0
+sudo spoofy duid randomize en0
+```
+
+**Manual sync for advanced use:**
+
+When using DUID-LL or DUID-LLT types, the DUID includes the MAC address. For consistent spoofing, ensure the MAC in your DUID matches your spoofed MAC:
+
+```javascript
+const spoofy = require('spoofy');
+
+// Spoof MAC
+const newMac = '00:11:22:33:44:55';
+spoofy.setInterfaceMAC('en0', newMac, 'Wi-Fi');
+
+// Create matching DUID
+const duid = spoofy.duid.generateDUID(spoofy.duid.DUID_TYPES.DUID_LL, newMac);
+spoofy.duid.setDUID(duid, 'en0');
+>>>>>>> upstream/master
 ```
 
 ## Platform Support
@@ -460,7 +543,8 @@ sudo spoofy set 00:11:22:33:44:55 wlan0
 
 - WiFi will briefly disconnect when changing MAC address
 - Some network restrictions or hardware may prevent MAC spoofing
-- Requires sudo/root privileges for all MAC address changes
+- Requires sudo/root privileges for all MAC address and DUID changes
+- DUID changes may require DHCPv6 lease renewal to take effect
 
 ## Troubleshooting
 
@@ -469,6 +553,7 @@ sudo spoofy set 00:11:22:33:44:55 wlan0
 2. Ensure WiFi is turned on before attempting to change MAC
 3. On modern macOS, you may need to reconnect to WiFi after the change
 4. Try running `networksetup -detectnewhardware` if changes don't take effect
+5. For DUID changes, you may need to disable/re-enable IPv6 or renew DHCPv6 lease
 
 ### Windows
 1. **Run as Administrator**: Right-click PowerShell or Command Prompt and select "Run as Administrator"
