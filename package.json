@@ -1,7 +1,7 @@
 {
   "name": "spoof-d",
   "description": "Cross-platform MAC address and DUID spoofing utility for macOS, Windows, and Linux",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "bin": {
     "spoofy": "bin/cmd.js"
   },
