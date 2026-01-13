@@ -277,11 +277,7 @@ sudo spoofy reset wi-fi
 
 ## DUID Spoofing (DHCPv6)
 
-<<<<<<< HEAD
 `spoof-d` also supports DHCPv6 DUID (DHCP Unique Identifier) spoofing for complete IPv6 network identity management.
-=======
-spoofy also supports DHCPv6 DUID (DHCP Unique Identifier) spoofing for complete IPv6 network identity management.
->>>>>>> upstream/master
 
 ### What is a DUID?
 
@@ -291,13 +287,8 @@ A DUID (DHCP Unique Identifier) is used in DHCPv6 to uniquely identify a client 
 
 The first time you spoof your DUID, your **original DUID is automatically saved** to:
 - macOS: `/var/db/dhcpclient/DUID.original`
-<<<<<<< HEAD
 - Linux: `/var/lib/spoofy/duid.original`
 - Windows: `%PROGRAMDATA%\spoofy\duid.original`
-=======
-- Linux: `/var/lib/spoofy/duid.original` *(planned)*
-- Windows: `%PROGRAMDATA%\spoofy\duid.original` *(planned)*
->>>>>>> upstream/master
 
 This allows you to **restore to your pre-spoofing state** at any time using `spoofy duid restore`.
 
@@ -528,7 +519,8 @@ Long-running operations show progress indicators:
 
 ```bash
 ⏳ Changing MAC address... ✓ Successfully set MAC address
-=======
+```
+
 ### Programmatic Usage
 
 ```javascript
@@ -600,7 +592,6 @@ spoofy.setInterfaceMAC('en0', newMac, 'Wi-Fi');
 // Create matching DUID
 const duid = spoofy.duid.generateDUID(spoofy.duid.DUID_TYPES.DUID_LL, newMac);
 spoofy.duid.setDUID(duid, 'en0');
->>>>>>> upstream/master
 ```
 
 ## Platform Support
