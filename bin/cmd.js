@@ -12,6 +12,7 @@ const ora = require("ora");
 const history = require("../lib/history");
 const oui = require("../lib/oui");
 const duidCli = require("../lib/duid-cli");
+const nm = process.platform === "linux" ? require("../lib/networkmanager") : null;
 
 const argv = minimist(process.argv.slice(2), {
   alias: {
@@ -19,7 +20,7 @@ const argv = minimist(process.argv.slice(2), {
     V: "verbose",
     j: "json",
   },
-  boolean: ["version", "verbose", "json"],
+  boolean: ["version", "verbose", "json", "nm-reconnect", "force"],
 });
 const cmd = argv._[0];
 
@@ -105,12 +106,130 @@ function progressStep(step, total, message) {
   }
 }
 
-try {
-  init();
-} catch (err) {
-  handleError(err);
-  process.exitCode = -1;
+function installCompletions() {
+  const shell = argv.shell || process.env.SHELL || "";
+  const platform = process.platform;
+  const completionsDir = path.join(__dirname, "..", "completions");
+  
+  let targetShell = "";
+  let completionFile = "";
+  let installPath = "";
+
+  // Detect shell
+  if (shell.includes("fish")) {
+    targetShell = "fish";
+    completionFile = path.join(completionsDir, "spoofy.fish");
+    if (platform === "win32") {
+      installPath = path.join(os.homedir(), ".config", "fish", "completions", "spoofy.fish");
+    } else {
+      installPath = path.join(os.homedir(), ".config", "fish", "completions", "spoofy.fish");
+    }
+  } else if (shell.includes("zsh")) {
+    targetShell = "zsh";
+    completionFile = path.join(completionsDir, "spoofy.zsh");
+    if (platform === "win32") {
+      installPath = path.join(os.homedir(), ".zshrc.d", "_spoofy");
+    } else {
+      installPath = path.join(os.homedir(), ".zshrc.d", "_spoofy");
+    }
+  } else if (shell.includes("bash") || shell.includes("sh")) {
+    targetShell = "bash";
+    completionFile = path.join(completionsDir, "spoofy.bash");
+    if (platform === "win32") {
+      installPath = path.join(os.homedir(), ".bash_completion.d", "spoofy");
+    } else {
+      installPath = path.join(os.homedir(), ".bash_completion.d", "spoofy");
+    }
+  } else if (platform === "win32") {
+    targetShell = "powershell";
+    completionFile = path.join(completionsDir, "spoofy.ps1");
+    installPath = path.join(os.homedir(), "Documents", "PowerShell", "spoofy.ps1");
+  }
+
+  if (!targetShell) {
+    console.error(chalk.red("✗"), "Could not detect shell. Please specify with --shell=<bash|zsh|fish|powershell>");
+    console.log(chalk.yellow("\nManual installation:"));
+    console.log(chalk.gray("  Bash:  source " + path.join(completionsDir, "spoofy.bash")));
+    console.log(chalk.gray("  Zsh:   Add to .zshrc: fpath=(" + completionsDir + " $fpath)"));
+    console.log(chalk.gray("  Fish:  Copy to ~/.config/fish/completions/spoofy.fish"));
+    console.log(chalk.gray("  PS:    Add to $PROFILE: . " + path.join(completionsDir, "spoofy.ps1")));
+    process.exit(1);
+  }
+
+  if (!fs.existsSync(completionFile)) {
+    console.error(chalk.red("✗"), `Completion file not found: ${completionFile}`);
+    process.exit(1);
+  }
+
+  try {
+    // Create target directory if it doesn't exist
+    const targetDir = path.dirname(installPath);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+      logVerbose(`Created directory: ${targetDir}`);
+    }
+
+    // Copy completion file
+    fs.copyFileSync(completionFile, installPath);
+    logVerbose(`Copied ${completionFile} to ${installPath}`);
+
+    // Generate installation instructions
+    console.log(chalk.green("✓"), `Completion file installed for ${targetShell}`);
+    console.log(chalk.gray(`  Location: ${installPath}`));
+    console.log();
+
+    if (targetShell === "bash") {
+      console.log(chalk.yellow("To enable completions, add to your ~/.bashrc:"));
+      console.log(chalk.cyan(`  source ${installPath}`));
+      console.log();
+      console.log(chalk.gray("Or reload your shell:"));
+      console.log(chalk.cyan("  source ~/.bashrc"));
+    } else if (targetShell === "zsh") {
+      console.log(chalk.yellow("To enable completions, add to your ~/.zshrc:"));
+      console.log(chalk.cyan(`  fpath=(${path.dirname(installPath)} $fpath)`));
+      console.log(chalk.cyan("  autoload -U compinit && compinit"));
+      console.log();
+      console.log(chalk.gray("Or reload your shell:"));
+      console.log(chalk.cyan("  source ~/.zshrc"));
+    } else if (targetShell === "fish") {
+      console.log(chalk.green("✓"), "Fish completions are automatically loaded!");
+      console.log(chalk.gray("  Restart your fish shell to use completions."));
+    } else if (targetShell === "powershell") {
+      console.log(chalk.yellow("To enable completions, add to your PowerShell profile:"));
+      console.log(chalk.cyan(`  . ${installPath}`));
+      console.log();
+      console.log(chalk.gray("Or run:"));
+      console.log(chalk.cyan(`  Add-Content $PROFILE ". ${installPath.replace(/\\/g, '/')}"`));
+      console.log();
+      console.log(chalk.gray("Then reload your profile:"));
+      console.log(chalk.cyan("  . $PROFILE"));
+    }
+
+    if (JSON_OUTPUT) {
+      outputJSON({
+        success: true,
+        shell: targetShell,
+        completionFile: completionFile,
+        installPath: installPath,
+      });
+    }
+  } catch (err) {
+    console.error(chalk.red("✗"), `Failed to install completions: ${err.message}`);
+    if (VERBOSE) {
+      console.error(err.stack);
+    }
+    process.exit(1);
+  }
 }
+
+(async () => {
+  try {
+    await init();
+  } catch (err) {
+    handleError(err);
+    process.exitCode = -1;
+  }
+})();
 
 function handleError(err) {
   if (err.code) {
@@ -151,7 +270,7 @@ function handleError(err) {
   }
 }
 
-function init() {
+async function init() {
   if (cmd === "version" || argv.version) {
     version();
   } else if (cmd === "list" || cmd === "ls") {
@@ -159,13 +278,13 @@ function init() {
   } else if (cmd === "set") {
     const mac = argv._[1];
     const devices = argv._.slice(2);
-    set(mac, devices);
+    await set(mac, devices);
   } else if (cmd === "randomize") {
     const devices = argv._.slice(1);
-    randomize(devices);
+    await randomize(devices);
   } else if (cmd === "reset") {
     const devices = argv._.slice(1);
-    reset(devices);
+    await reset(devices);
   } else if (cmd === "normalize") {
     const mac = argv._[1];
     normalize(mac);
@@ -180,9 +299,11 @@ function init() {
     vendor(mac);
   } else if (cmd === "batch") {
     const file = argv._[1];
-    batch(file);
+    await batch(file);
   } else if (cmd === "history") {
     historyCmd();
+  } else if (cmd === "completion" || cmd === "completions") {
+    installCompletions();
   } else if (cmd === "duid") {
     duidCli.run(argv._.slice(1), VERBOSE, JSON_OUTPUT);
   } else {
@@ -232,6 +353,7 @@ ${example}${note}
       vendor <mac>                      Look up vendor from MAC address.
       batch <file>                      Change multiple interfaces from config file.
       history                            View MAC address change history.
+      completion                         Install shell completions (bash/zsh/fish/PowerShell).
       duid <command>                    DHCPv6 DUID spoofing commands (see: spoofy duid help).
 
     Options:
@@ -239,6 +361,8 @@ ${example}${note}
       --local         Set the locally administered flag on randomized MACs.
       --verbose, -V   Show verbose output for debugging.
       --json, -j     Output results in JSON format.
+      --nm-reconnect  (Linux only) Automatically reconnect NetworkManager device after MAC change.
+      --force         (Linux only) Use with --nm-reconnect to force NetworkManager networking restart.
 
     Platform Support:
       ✅ macOS (Sequoia 15.4+, Tahoe 26+)
@@ -261,7 +385,7 @@ function version() {
   }
 }
 
-function set(mac, devices) {
+async function set(mac, devices) {
   if (!mac) {
     throw new Error("MAC address is required. Usage: spoofy set <mac> <device>");
   }
@@ -272,7 +396,8 @@ function set(mac, devices) {
   
   logVerbose(`Setting MAC address ${mac} on ${devices.length} device(s)`);
   
-  devices.forEach((device, index) => {
+  for (let index = 0; index < devices.length; index++) {
+    const device = devices[index];
     logVerbose(`Processing device ${index + 1}/${devices.length}: ${device}`);
     showProgress(`Finding interface ${device}`);
     
@@ -287,8 +412,8 @@ function set(mac, devices) {
     }
 
     logVerbose(`Found interface: ${it.device} (port: ${it.port})`);
-    setMACAddress(it.device, mac, it.port);
-  });
+    await setMACAddress(it.device, mac, it.port);
+  }
 }
 
 function normalize(mac) {
@@ -330,7 +455,7 @@ function normalize(mac) {
   }
 }
 
-function randomize(devices) {
+async function randomize(devices) {
   if (!devices || devices.length === 0) {
     throw new Error("Device name is required. Usage: spoofy randomize <device>");
   }
@@ -338,7 +463,8 @@ function randomize(devices) {
   const useLocal = argv.local || (config && config.randomize && config.randomize.local);
   logVerbose(`Randomizing MAC address (local: ${useLocal})`);
   
-  devices.forEach((device, index) => {
+  for (let index = 0; index < devices.length; index++) {
+    const device = devices[index];
     logVerbose(`Processing device ${index + 1}/${devices.length}: ${device}`);
     showProgress(`Finding interface ${device}`);
     
@@ -361,18 +487,19 @@ function randomize(devices) {
       console.log(chalk.blue("ℹ"), `Generated random MAC address: ${chalk.bold.cyan(mac)}`);
     }
     
-    setMACAddress(it.device, mac, it.port, "randomize");
-  });
+    await setMACAddress(it.device, mac, it.port, "randomize");
+  }
 }
 
-function reset(devices) {
+async function reset(devices) {
   if (!devices || devices.length === 0) {
     throw new Error("Device name is required. Usage: spoofy reset <device>");
   }
   
   logVerbose(`Resetting MAC address on ${devices.length} device(s)`);
   
-  devices.forEach((device, index) => {
+  for (let index = 0; index < devices.length; index++) {
+    const device = devices[index];
     logVerbose(`Processing device ${index + 1}/${devices.length}: ${device}`);
     showProgress(`Finding interface ${device}`);
     
@@ -401,8 +528,8 @@ function reset(devices) {
       console.log(chalk.blue("ℹ"), `Resetting to hardware MAC address: ${chalk.bold.cyan(it.address)}`);
     }
     
-    setMACAddress(it.device, it.address, it.port, "reset");
-  });
+    await setMACAddress(it.device, it.address, it.port, "reset");
+  }
 }
 
 function list() {
@@ -473,7 +600,7 @@ function list() {
   });
 }
 
-function setMACAddress(device, mac, port, operation = "set") {
+async function setMACAddress(device, mac, port, operation = "set") {
   logVerbose(`Setting MAC address ${mac} on device ${device}`);
   
   // Get current MAC for history
@@ -521,11 +648,60 @@ function setMACAddress(device, mac, port, operation = "set") {
     logVerbose("Root privileges confirmed");
   }
 
+  // Check NetworkManager status on Linux
+  let nmReconnect = false;
+  if (process.platform === "linux" && nm) {
+    try {
+      const nmStatus = await nm.isNetworkManagerPresent();
+      if (nmStatus.present && nmStatus.running) {
+        const deviceStatus = await nm.getNMDeviceStatus(device);
+        
+        if (deviceStatus.managed) {
+          // Interface is managed by NetworkManager
+          if (argv["nm-reconnect"]) {
+            nmReconnect = true;
+            if (!JSON_OUTPUT) {
+              console.log(chalk.blue("ℹ"), `NetworkManager is managing ${device}. Will reconnect after MAC change.`);
+            }
+            logVerbose(`NetworkManager managing ${device}, will reconnect after change`);
+          } else {
+            // Show warning
+            if (!JSON_OUTPUT) {
+              console.warn(chalk.yellow("⚠"), `NetworkManager is managing ${device}. MAC changes may be overwritten.`);
+              console.log(chalk.gray("  Suggestions:"));
+              console.log(chalk.gray("    1. Use --nm-reconnect to automatically reconnect the device"));
+              console.log(chalk.gray("    2. Temporarily disconnect: nmcli dev disconnect " + device));
+              console.log(chalk.gray("    3. Mark device unmanaged in /etc/NetworkManager/NetworkManager.conf:"));
+              console.log(chalk.gray("       [keyfile]"));
+              console.log(chalk.gray("       unmanaged-devices=interface-name:" + device));
+              console.log(chalk.gray("       Then restart: sudo systemctl restart NetworkManager"));
+            }
+            
+            if (VERBOSE) {
+              logVerbose(`NetworkManager status: present=${nmStatus.present}, running=${nmStatus.running}, method=${nmStatus.method}`);
+              logVerbose(`Device status: managed=${deviceStatus.managed}, state=${deviceStatus.state}`);
+              if (deviceStatus.raw) {
+                logVerbose(`nmcli output: ${deviceStatus.raw}`);
+              }
+            }
+          }
+        } else if (VERBOSE) {
+          logVerbose(`Interface ${device} is not managed by NetworkManager (or NM not managing it)`);
+        }
+      }
+    } catch (err) {
+      // NetworkManager check failed, log but continue
+      logVerbose(`NetworkManager check failed: ${err.message}`);
+    }
+  }
+
   try {
     showProgress("Changing MAC address");
     logVerbose(`Calling setInterfaceMAC(${device}, ${mac}, ${port})`);
     
-    spoof.setInterfaceMAC(device, mac, port);
+    // Pass NetworkManager reconnect option
+    const nmOptions = nmReconnect ? { reconnect: true, force: argv.force || false } : null;
+    await spoof.setInterfaceMAC(device, mac, port, nmOptions);
     
     // Log to history
     history.addHistoryEntry(device, oldMac, mac, operation);
@@ -717,7 +893,7 @@ function vendor(mac) {
   }
 }
 
-function batch(file) {
+async function batch(file) {
   if (!file) {
     throw new Error("Batch file is required. Usage: spoofy batch <file>");
   }
@@ -750,7 +926,8 @@ function batch(file) {
   let successCount = 0;
   let failCount = 0;
   
-  batchConfig.forEach((operation, index) => {
+  for (let index = 0; index < batchConfig.length; index++) {
+    const operation = batchConfig[index];
     const step = index + 1;
     const total = batchConfig.length;
     progressStep(step, total, `Processing operation ${step}`);
@@ -761,7 +938,7 @@ function batch(file) {
         if (!it) {
           throw new Error(`Device not found: ${operation.device}`);
         }
-        setMACAddress(it.device, operation.mac, it.port, "batch-set");
+        await setMACAddress(it.device, operation.mac, it.port, "batch-set");
         results.push({ success: true, operation: operation, index: index });
         successCount++;
       } else if (operation.type === "randomize" && operation.device) {
@@ -770,7 +947,7 @@ function batch(file) {
           throw new Error(`Device not found: ${operation.device}`);
         }
         const mac = spoof.randomize(operation.local || false);
-        setMACAddress(it.device, mac, it.port, "batch-randomize");
+        await setMACAddress(it.device, mac, it.port, "batch-randomize");
         results.push({ success: true, operation: operation, mac: mac, index: index });
         successCount++;
       } else if (operation.type === "reset" && operation.device) {
@@ -781,7 +958,7 @@ function batch(file) {
         if (!it.address) {
           throw new Error(`No hardware MAC address for: ${operation.device}`);
         }
-        setMACAddress(it.device, it.address, it.port, "batch-reset");
+        await setMACAddress(it.device, it.address, it.port, "batch-reset");
         results.push({ success: true, operation: operation, index: index });
         successCount++;
       } else {
@@ -791,7 +968,7 @@ function batch(file) {
       results.push({ success: false, operation: operation, error: err.message, index: index });
       failCount++;
     }
-  });
+  }
   
   progressStep(batchConfig.length, batchConfig.length, "Completed");
   

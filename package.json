@@ -1,7 +1,7 @@
 {
   "name": "spoof-d",
   "description": "Cross-platform MAC address and DUID spoofing utility for macOS, Windows, and Linux",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "bin": {
     "spoofy": "bin/cmd.js"
   },
@@ -9,6 +9,7 @@
     "index.js",
     "bin/",
     "lib/",
+    "completions/",
     "LICENSE",
     "README.md",
     ".spoofyrc.example",
@@ -60,6 +61,9 @@
     "url": "git://github.com/TT5H/spoof-d.git"
   },
   "scripts": {
-    "test": "standard"
+    "test": "standard",
+    "test:duid": "node test/test-duid.js",
+    "test:nm": "node test/test-networkmanager.js",
+    "test:all": "npm run test:duid && npm run test:nm"
   }
 }

@@ -607,7 +607,7 @@ function getInterfaceMAC(device) {
  * @param {string} mac
  * @param {string=} port
  */
-function setInterfaceMAC(device, mac, port) {
+async function setInterfaceMAC(device, mac, port, nmOptions = null) {
   // Validate MAC address format
   if (!mac || typeof mac !== "string") {
     throw new ValidationError("MAC address must be a non-empty string");
@@ -790,6 +790,29 @@ function setInterfaceMAC(device, mac, port) {
           "Some adapters require a restart to apply MAC changes"
         ]
       );
+    }
+    
+    // Handle NetworkManager reconnection if requested
+    if (nmOptions && nmOptions.reconnect) {
+      const nm = require("./lib/networkmanager");
+      try {
+        // Small delay to ensure MAC change is fully applied
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        if (nmOptions.force) {
+          // Force reconnect by toggling networking (use with caution)
+          await nm.toggleNMNetworking(false, 20000);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await nm.toggleNMNetworking(true, 20000);
+        } else {
+          // Normal reconnect
+          await nm.reconnectNMDevice(device, 20000);
+        }
+      } catch (err) {
+        // Log but don't fail - MAC change succeeded
+        console.warn(`Warning: NetworkManager reconnection failed: ${err.message}`);
+        console.warn("  The MAC address change was successful, but NetworkManager may need manual reconnection.");
+      }
     }
   } else if (process.platform === "win32") {
     // Windows support using PowerShell and registry

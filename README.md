@@ -85,6 +85,110 @@ npm install -g .
 
 This gives you the latest development version with all the latest features.
 
+## Shell Completions
+
+`spoof-d` includes shell completion support for bash, zsh, fish, and PowerShell, making it easier to use the CLI with tab completion.
+
+### Automatic Installation
+
+The easiest way to install completions is using the built-in command:
+
+```bash
+spoofy completion
+```
+
+This will automatically detect your shell and install the appropriate completion file. You can also specify a shell explicitly:
+
+```bash
+spoofy completion --shell=bash
+spoofy completion --shell=zsh
+spoofy completion --shell=fish
+spoofy completion --shell=powershell
+```
+
+### Manual Installation
+
+#### Bash
+
+```bash
+# Copy completion file
+mkdir -p ~/.bash_completion.d
+cp completions/spoofy.bash ~/.bash_completion.d/spoofy
+
+# Add to ~/.bashrc
+echo "source ~/.bash_completion.d/spoofy" >> ~/.bashrc
+source ~/.bashrc
+```
+
+Or install globally (requires root):
+
+```bash
+sudo cp completions/spoofy.bash /etc/bash_completion.d/spoofy
+```
+
+#### Zsh
+
+```bash
+# Copy completion file
+mkdir -p ~/.zshrc.d
+cp completions/spoofy.zsh ~/.zshrc.d/_spoofy
+
+# Add to ~/.zshrc
+echo "fpath=(~/.zshrc.d \$fpath)" >> ~/.zshrc
+echo "autoload -U compinit && compinit" >> ~/.zshrc
+source ~/.zshrc
+```
+
+Or install globally (requires root):
+
+```bash
+sudo cp completions/spoofy.zsh /usr/local/share/zsh/site-functions/_spoofy
+```
+
+#### Fish
+
+```bash
+# Copy completion file
+mkdir -p ~/.config/fish/completions
+cp completions/spoofy.fish ~/.config/fish/completions/spoofy.fish
+```
+
+Fish will automatically load completions from `~/.config/fish/completions/`. Just restart your fish shell.
+
+Or install globally (requires root):
+
+```bash
+sudo cp completions/spoofy.fish /usr/share/fish/completions/spoofy.fish
+```
+
+#### PowerShell
+
+```powershell
+# Copy completion file
+New-Item -ItemType Directory -Force -Path (Split-Path $PROFILE)
+Copy-Item completions/spoofy.ps1 $PROFILE
+
+# Add to PowerShell profile
+Add-Content $PROFILE ". $PROFILE"
+
+# Reload profile
+. $PROFILE
+```
+
+Or add manually to your profile:
+
+```powershell
+. C:\path\to\completions\spoofy.ps1
+```
+
+### Features
+
+- **Command completion**: Tab-complete all available commands (`list`, `set`, `randomize`, `duid`, etc.)
+- **Interface name completion**: Automatically suggests available network interfaces
+- **Option completion**: Tab-complete all flags and options (`--wifi`, `--verbose`, etc.)
+- **DUID subcommand completion**: Full completion support for DUID commands
+- **Context-aware**: Completions adapt based on the current command and position
+
 ## Quick Start
 
 ### List network interfaces
@@ -546,6 +650,123 @@ sudo spoofy set 00:11:22:33:44:55 wlan0
 - Requires sudo/root privileges for all MAC address and DUID changes
 - DUID changes may require DHCPv6 lease renewal to take effect
 
+## NetworkManager Integration (Linux)
+
+On Linux systems using NetworkManager, MAC address changes may be immediately overwritten by NetworkManager if the interface is managed. `spoof-d` includes NetworkManager detection and integration to help prevent this issue.
+
+### Automatic Detection
+
+When changing MAC addresses on Linux, `spoof-d` automatically:
+- Detects if NetworkManager is present and running
+- Checks if the target interface is managed by NetworkManager
+- Warns you if the interface is managed (MAC changes may be overwritten)
+
+### Using `--nm-reconnect`
+
+To automatically reconnect the NetworkManager device after a MAC change:
+
+```bash
+sudo spoofy randomize eth0 --nm-reconnect
+```
+
+This will:
+1. Change the MAC address
+2. Disconnect the device from NetworkManager
+3. Reconnect the device to apply the new MAC address
+
+### Force NetworkManager Restart
+
+If normal reconnection doesn't work, you can force NetworkManager to restart networking (use with caution):
+
+```bash
+sudo spoofy randomize eth0 --nm-reconnect --force
+```
+
+**Warning:** The `--force` flag will temporarily disable all NetworkManager networking, which may disconnect all network interfaces briefly.
+
+### Manual NetworkManager Management
+
+If you prefer to manage NetworkManager manually:
+
+1. **Temporarily disconnect the device:**
+   ```bash
+   nmcli dev disconnect eth0
+   sudo spoofy randomize eth0
+   nmcli dev connect eth0
+   ```
+
+2. **Mark device as unmanaged** (persistent):
+   Edit `/etc/NetworkManager/NetworkManager.conf`:
+   ```ini
+   [keyfile]
+   unmanaged-devices=interface-name:eth0
+   ```
+   Then restart NetworkManager:
+   ```bash
+   sudo systemctl restart NetworkManager
+   ```
+
+3. **Disable NetworkManager for specific interface** (temporary):
+   ```bash
+   nmcli device set eth0 managed no
+   sudo spoofy randomize eth0
+   nmcli device set eth0 managed yes
+   ```
+
+### Verbose Output
+
+Use `--verbose` to see detailed NetworkManager status:
+
+```bash
+sudo spoofy randomize eth0 --verbose
+```
+
+This will show:
+- NetworkManager detection method (nmcli, systemctl, etc.)
+- Device management status
+- Raw nmcli output for debugging
+
+## Testing
+
+The project includes test suites for core functionality:
+
+### DUID Tests
+
+Test DUID generation, parsing, and conversion:
+
+```bash
+# Run all DUID tests
+npm run test:duid
+# or
+node test/test-duid.js
+
+# Run specific test
+node test/test-duid.js --test=generation
+node test/test-duid.js --test=parsing
+```
+
+### NetworkManager Tests (Linux only)
+
+Test NetworkManager detection and device status parsing:
+
+```bash
+# Run all NetworkManager tests
+npm run test:nm
+# or
+node test/test-networkmanager.js
+
+# Run specific test (parsing tests work on any platform)
+node test/test-networkmanager.js --test=parsing
+```
+
+### Run All Tests
+
+```bash
+npm run test:all
+```
+
+**Note:** NetworkManager tests require a Linux system with NetworkManager installed. Parsing tests work on any platform.
+
 ## Troubleshooting
 
 ### macOS
@@ -565,8 +786,12 @@ sudo spoofy set 00:11:22:33:44:55 wlan0
 ### Linux
 1. Make sure you're running with `sudo` (required for network changes)
 2. Ensure the `ip` command is available (usually in `iproute2` package)
-3. Some network interfaces may be managed by NetworkManager - you may need to disable it temporarily
+3. **NetworkManager conflicts**: If NetworkManager is managing your interface, MAC changes may be overwritten
+   - Use `--nm-reconnect` to automatically reconnect after MAC change
+   - Or manually disconnect/reconnect: `nmcli dev disconnect <iface>` then `nmcli dev connect <iface>`
+   - Or mark interface as unmanaged in NetworkManager config (see NetworkManager Integration section)
 4. Virtual interfaces and certain hardware may not support MAC address changes
+5. If MAC changes don't persist, check NetworkManager status: `nmcli device status`
 
 ## Contributing
 
