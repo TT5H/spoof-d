@@ -368,7 +368,6 @@ sudo spoofy duid reset en0
 | 3 | DUID-LL | Link-layer address only (default) |
 | 4 | DUID-UUID | UUID-based identifier |
 
-<<<<<<< HEAD
 ### Show detailed interface information
 
 ```bash
