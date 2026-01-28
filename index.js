@@ -128,11 +128,30 @@ function execWithTimeout(command, options = {}, timeout = 30000) {
 }
 
 /**
+ * Synchronous sleep using Atomics.wait (non-blocking alternative to busy-wait)
+ * Falls back to busy-wait only if SharedArrayBuffer is not available
+ * @param {number} ms - Milliseconds to sleep
+ */
+function sleepSync(ms) {
+  if (typeof SharedArrayBuffer !== 'undefined') {
+    const sab = new SharedArrayBuffer(4);
+    const int32 = new Int32Array(sab);
+    Atomics.wait(int32, 0, 0, ms);
+  } else {
+    // Fallback for environments without SharedArrayBuffer
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      // Busy wait fallback
+    }
+  }
+}
+
+/**
  * Retries a function with exponential backoff
  * @param {Function} fn
  * @param {number} maxRetries
  * @param {number} delay
- * @return {Promise}
+ * @return {any}
  */
 function retry(fn, maxRetries = 3, delay = 500) {
   let lastError;
@@ -143,11 +162,7 @@ function retry(fn, maxRetries = 3, delay = 500) {
       lastError = err;
       if (i < maxRetries - 1) {
         const waitTime = delay * Math.pow(2, i);
-        // Simple sleep for sync operations
-        const start = Date.now();
-        while (Date.now() - start < waitTime) {
-          // Busy wait
-        }
+        sleepSync(waitTime);
       }
     }
   }

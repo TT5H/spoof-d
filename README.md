@@ -62,6 +62,12 @@ This repository ([TT5H/spoof-d](https://github.com/TT5H/spoof-d)) is a fork of [
 - **DUID (DHCPv6) spoofing** for complete IPv6 network identity management
 - **Automatic verification** of DUID changes with retry logic
 
+## Requirements
+
+- **Node.js**: Version 12.0.0 or higher
+- **Operating System**: macOS, Windows 10/11, or Linux
+- **Privileges**: Administrator/root access required for MAC and DUID changes
+
 ## Installation
 
 ### From npm (recommended)

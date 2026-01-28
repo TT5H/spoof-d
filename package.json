@@ -1,7 +1,11 @@
 {
   "name": "spoof-d",
   "description": "Cross-platform MAC address and DUID spoofing utility for macOS, Windows, and Linux",
-  "version": "0.5.2",
+  "version": "0.5.3",
+  "author": "TT5H",
+  "engines": {
+    "node": ">=12.0.0"
+  },
   "bin": {
     "spoofy": "bin/cmd.js"
   },
@@ -27,7 +31,7 @@
     "zero-fill": "^2.2.4"
   },
   "devDependencies": {
-    "standard": "*"
+    "standard": "^17.0.0"
   },
   "homepage": "https://github.com/TT5H/spoof-d",
   "keywords": [
@@ -51,7 +55,6 @@
     "windows",
     "linux",
     "cross-platform",
-    "network",
     "adapter"
   ],
   "license": "MIT",
