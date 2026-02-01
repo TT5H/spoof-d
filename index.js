@@ -7,6 +7,7 @@ module.exports = {
   setInterfaceMAC,
   getInterfaceMAC,
   validateMAC,
+  duid: require("./lib/duid"),
 };
 
 /**

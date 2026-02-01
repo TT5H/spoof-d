@@ -19,8 +19,9 @@ const argv = minimist(process.argv.slice(2), {
     v: "version",
     V: "verbose",
     j: "json",
+    h: "help",
   },
-  boolean: ["version", "verbose", "json", "nm-reconnect", "force"],
+  boolean: ["version", "verbose", "json", "nm-reconnect", "force", "help"],
 });
 const cmd = argv._[0];
 
@@ -104,6 +105,14 @@ function progressStep(step, total, message) {
   if (step === total) {
     currentSpinner = null;
   }
+}
+
+function warnIfNotElevated() {
+  if (JSON_OUTPUT) return;
+  if (process.platform === "win32") return;
+  if (typeof process.getuid !== "function") return;
+  if (process.getuid() === 0) return;
+  console.error(chalk.yellow("⚠"), chalk.gray("MAC changes usually require root. If this fails, try: sudo spoofy <command>"));
 }
 
 function installCompletions() {
@@ -273,6 +282,8 @@ function handleError(err) {
 async function init() {
   if (cmd === "version" || argv.version) {
     version();
+  } else if (argv.help || argv.h) {
+    help();
   } else if (cmd === "list" || cmd === "ls") {
     list();
   } else if (cmd === "set") {
@@ -357,6 +368,7 @@ ${example}${note}
       duid <command>                    DHCPv6 DUID spoofing commands (see: spoofy duid help).
 
     Options:
+      --help, -h      Show this help message.
       --wifi          Try to only show wireless interfaces.
       --local         Set the locally administered flag on randomized MACs.
       --verbose, -V   Show verbose output for debugging.
@@ -393,7 +405,8 @@ async function set(mac, devices) {
   if (!devices || devices.length === 0) {
     throw new Error("Device name is required. Usage: spoofy set <mac> <device>");
   }
-  
+
+  warnIfNotElevated();
   logVerbose(`Setting MAC address ${mac} on ${devices.length} device(s)`);
   
   for (let index = 0; index < devices.length; index++) {
@@ -459,7 +472,8 @@ async function randomize(devices) {
   if (!devices || devices.length === 0) {
     throw new Error("Device name is required. Usage: spoofy randomize <device>");
   }
-  
+
+  warnIfNotElevated();
   const useLocal = argv.local || (config && config.randomize && config.randomize.local);
   logVerbose(`Randomizing MAC address (local: ${useLocal})`);
   
@@ -495,7 +509,8 @@ async function reset(devices) {
   if (!devices || devices.length === 0) {
     throw new Error("Device name is required. Usage: spoofy reset <device>");
   }
-  
+
+  warnIfNotElevated();
   logVerbose(`Resetting MAC address on ${devices.length} device(s)`);
   
   for (let index = 0; index < devices.length; index++) {

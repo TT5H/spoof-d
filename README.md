@@ -528,8 +528,10 @@ Long-running operations show progress indicators:
 
 ### Programmatic Usage
 
+Install the package as `spoof-d`; the CLI command is `spoofy`.
+
 ```javascript
-const spoofy = require('spoofy');
+const spoofy = require('spoof-d');
 
 // Get current DUID
 const current = spoofy.duid.getCurrentDUID();
@@ -588,7 +590,7 @@ sudo spoofy duid randomize en0
 When using DUID-LL or DUID-LLT types, the DUID includes the MAC address. For consistent spoofing, ensure the MAC in your DUID matches your spoofed MAC:
 
 ```javascript
-const spoofy = require('spoofy');
+const spoofy = require('spoof-d');
 
 // Spoof MAC
 const newMac = '00:11:22:33:44:55';

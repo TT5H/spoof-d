@@ -1,7 +1,7 @@
 {
   "name": "spoof-d",
   "description": "Cross-platform MAC address and DUID spoofing utility for macOS, Windows, and Linux",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "author": "TT5H",
   "engines": {
     "node": ">=12.0.0"
