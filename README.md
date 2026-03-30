@@ -76,9 +76,7 @@ This repository ([TT5H/spoof-d](https://github.com/TT5H/spoof-d)) is a fork of [
 npm install -g spoof-d
 ```
 
-After installation, use the `spoofy` command (the package name is `spoof-d`, but the command is still `spoofy`).
-
-After installation, you can use the `spoofy` command from anywhere.
+After installation, use the `spoofy` command from anywhere (the package name is `spoof-d`, but the CLI command is `spoofy`).
 
 ### From source
 
@@ -170,12 +168,15 @@ sudo cp completions/spoofy.fish /usr/share/fish/completions/spoofy.fish
 #### PowerShell
 
 ```powershell
-# Copy completion file
+# Create profile directory if needed
 New-Item -ItemType Directory -Force -Path (Split-Path $PROFILE)
-Copy-Item completions/spoofy.ps1 $PROFILE
 
-# Add to PowerShell profile
-Add-Content $PROFILE ". $PROFILE"
+# Copy completion file next to your profile
+$completionPath = Join-Path (Split-Path $PROFILE) "spoofy-completion.ps1"
+Copy-Item completions/spoofy.ps1 $completionPath
+
+# Add sourcing line to your PowerShell profile
+Add-Content $PROFILE ". `"$completionPath`""
 
 # Reload profile
 . $PROFILE

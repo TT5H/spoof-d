@@ -1,4 +1,6 @@
 /*! spoof. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
+var utils = require("./lib/utils");
+
 module.exports = {
   findInterface,
   findInterfaces,
@@ -95,12 +97,23 @@ class PlatformError extends SpoofyError {
 }
 
 /**
- * Escapes a string for use in PowerShell commands
+ * Escapes a string for use in PowerShell single-quoted strings.
+ * Delegates to shared utils module.
  * @param {string} str
  * @return {string}
  */
 function escapePowerShell(str) {
-  return str.replace(/'/g, "''").replace(/"/g, '`"');
+  return utils.escapePowerShell(str);
+}
+
+/**
+ * Sanitize interface names to prevent command injection.
+ * Delegates to shared utils module.
+ * @param {string} iface
+ * @return {string}
+ */
+function sanitizeInterfaceName(iface) {
+  return utils.sanitizeInterfaceName(iface);
 }
 
 /**
@@ -129,46 +142,35 @@ function execWithTimeout(command, options = {}, timeout = 30000) {
 }
 
 /**
- * Synchronous sleep using Atomics.wait (non-blocking alternative to busy-wait)
- * Falls back to busy-wait only if SharedArrayBuffer is not available
- * @param {number} ms - Milliseconds to sleep
+ * Runs a PowerShell command safely using execFileSync (no shell interpolation).
+ * This bypasses cmd.exe entirely, preventing OS-level command injection.
+ * @param {string} psCommand - The PowerShell command string to execute
+ * @param {number} [timeout=30000] - Timeout in ms
+ * @return {string} Command output as string
  */
-function sleepSync(ms) {
-  if (typeof SharedArrayBuffer !== 'undefined') {
-    const sab = new SharedArrayBuffer(4);
-    const int32 = new Int32Array(sab);
-    Atomics.wait(int32, 0, 0, ms);
-  } else {
-    // Fallback for environments without SharedArrayBuffer
-    const end = Date.now() + ms;
-    while (Date.now() < end) {
-      // Busy wait fallback
+function runPowerShell(psCommand, timeout = 30000) {
+  try {
+    return cp.execFileSync("powershell", [
+      "-NoProfile", "-NonInteractive", "-Command", psCommand
+    ], {
+      stdio: "pipe",
+      timeout: timeout,
+      maxBuffer: 10 * 1024 * 1024,
+    }).toString();
+  } catch (err) {
+    if (err.signal === "SIGTERM") {
+      throw new NetworkError(
+        `PowerShell command timed out after ${timeout}ms`,
+        ["Try again with a slower network connection", "Check if the interface is busy"]
+      );
     }
+    throw err;
   }
 }
 
-/**
- * Retries a function with exponential backoff
- * @param {Function} fn
- * @param {number} maxRetries
- * @param {number} delay
- * @return {any}
- */
-function retry(fn, maxRetries = 3, delay = 500) {
-  let lastError;
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return fn();
-    } catch (err) {
-      lastError = err;
-      if (i < maxRetries - 1) {
-        const waitTime = delay * Math.pow(2, i);
-        sleepSync(waitTime);
-      }
-    }
-  }
-  throw lastError;
-}
+// sleepSync and retry are now in shared utils module
+var sleepSync = utils.sleepSync;
+var retry = utils.retry;
 
 /**
  * Parses PowerShell error output for better error messages
@@ -422,13 +424,7 @@ function findInterfacesWin32(targets) {
   
   try {
     const psCommand = `Get-NetAdapter | Select-Object Name, InterfaceDescription, MacAddress, Status | ConvertTo-Json -Compress`;
-    const output = cp
-      .execSync(
-        `powershell -Command "${psCommand}"`,
-        { stdio: "pipe", shell: true }
-      )
-      .toString()
-      .trim();
+    const output = runPowerShell(psCommand, 30000).trim();
 
     // Parse JSON output
     const adapters = JSON.parse(output);
@@ -579,13 +575,7 @@ function getInterfaceMAC(device) {
     try {
       const escapedDevice = escapePowerShell(device);
       const psCommand = `Get-NetAdapter -Name '${escapedDevice}' | Select-Object -ExpandProperty MacAddress`;
-      const output = cp
-        .execSync(
-          `powershell -Command "${psCommand}"`,
-          { stdio: "pipe", shell: true }
-        )
-        .toString()
-        .trim();
+      const output = runPowerShell(psCommand, 30000).trim();
       
       if (output) {
         return normalize(output);
@@ -650,10 +640,12 @@ async function setInterfaceMAC(device, mac, port, nmOptions = null) {
     );
   }
 
-  // Validate device name
-  if (!device || typeof device !== "string" || device.trim().length === 0) {
+  // Validate and sanitize device name to prevent command injection
+  try {
+    device = sanitizeInterfaceName(device);
+  } catch (err) {
     throw new ValidationError(
-      "Device name must be a non-empty string",
+      err.message,
       ["List available devices using: spoofy list"]
     );
   }
@@ -843,11 +835,7 @@ async function setInterfaceMAC(device, mac, port, nmOptions = null) {
       const escapedMac = escapePowerShell(mac);
       const psCommand = `$ErrorActionPreference = 'Stop'; try { $adapter = Get-NetAdapter -Name '${escapedDevice}' -ErrorAction Stop; if ($adapter) { $adapter | Set-NetAdapter -MacAddress '${escapedMac}' -ErrorAction Stop; Write-Host 'Success' } else { throw 'Adapter not found: ${escapedDevice}' } } catch { Write-Error $_.Exception.Message; exit 1 }`;
       try {
-        execWithTimeout(
-          `powershell -Command "${psCommand}"`,
-          { shell: true },
-          30000
-        );
+        runPowerShell(psCommand, 30000);
       } catch (err) {
         const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message);
         // Method 2: Fallback to registry method
@@ -855,11 +843,7 @@ async function setInterfaceMAC(device, mac, port, nmOptions = null) {
         const getGuidCommand = `$ErrorActionPreference = 'Stop'; try { Get-NetAdapter -Name '${escapedDevice}' -ErrorAction Stop | Select-Object -ExpandProperty InterfaceGuid } catch { Write-Error $_.Exception.Message; exit 1 }`;
         let guidOutput;
         try {
-          guidOutput = execWithTimeout(
-            `powershell -Command "${getGuidCommand}"`,
-            { shell: true },
-            30000
-          ).toString().trim();
+          guidOutput = runPowerShell(getGuidCommand, 30000).trim();
         } catch (err) {
           const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message);
           throw new NetworkError(
@@ -885,11 +869,7 @@ async function setInterfaceMAC(device, mac, port, nmOptions = null) {
         // Disable adapter
         const disableCommand = `$ErrorActionPreference = 'Stop'; try { Disable-NetAdapter -Name '${escapedDevice}' -Confirm:$false -ErrorAction Stop } catch { Write-Error $_.Exception.Message; exit 1 }`;
         try {
-          execWithTimeout(
-            `powershell -Command "${disableCommand}"`,
-            { shell: true },
-            30000
-          );
+          runPowerShell(disableCommand, 30000);
         } catch (err) {
           const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message);
           throw new NetworkError(
@@ -907,19 +887,11 @@ async function setInterfaceMAC(device, mac, port, nmOptions = null) {
         const findGuidCommand = `$ErrorActionPreference = 'Stop'; try { $path = '${registryPath}'; Get-ChildItem -Path $path -ErrorAction Stop | Where-Object { (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).NetCfgInstanceId -eq '${escapedGuid}' } | Select-Object -ExpandProperty PSPath } catch { Write-Error $_.Exception.Message; exit 1 }`;
         let adapterPath;
         try {
-          adapterPath = execWithTimeout(
-            `powershell -Command "${findGuidCommand}"`,
-            { shell: true },
-            30000
-          ).toString().trim();
+          adapterPath = runPowerShell(findGuidCommand, 30000).trim();
         } catch (err) {
           // Re-enable adapter before throwing error
           try {
-            execWithTimeout(
-              `powershell -Command "Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false"`,
-              { shell: true },
-              10000
-            );
+            runPowerShell(`Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false`, 10000);
           } catch (e) {
             // Ignore re-enable errors
           }
@@ -936,11 +908,7 @@ async function setInterfaceMAC(device, mac, port, nmOptions = null) {
         if (!adapterPath || adapterPath.toLowerCase().includes("error")) {
           // Re-enable adapter before throwing error
           try {
-            execWithTimeout(
-              `powershell -Command "Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false"`,
-              { shell: true },
-              10000
-            );
+            runPowerShell(`Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false`, 10000);
           } catch (e) {
             // Ignore re-enable errors
           }
@@ -957,19 +925,11 @@ async function setInterfaceMAC(device, mac, port, nmOptions = null) {
         const escapedPath = escapePowerShell(adapterPath);
         const setMacCommand = `$ErrorActionPreference = 'Stop'; try { Set-ItemProperty -Path '${escapedPath}' -Name 'NetworkAddress' -Value '${macNoSeparators}' -ErrorAction Stop } catch { Write-Error $_.Exception.Message; exit 1 }`;
         try {
-          execWithTimeout(
-            `powershell -Command "${setMacCommand}"`,
-            { shell: true },
-            30000
-          );
+          runPowerShell(setMacCommand, 30000);
         } catch (err) {
           // Re-enable adapter before throwing error
           try {
-            execWithTimeout(
-              `powershell -Command "Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false"`,
-              { shell: true },
-              10000
-            );
+            runPowerShell(`Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false`, 10000);
           } catch (e) {
             // Ignore re-enable errors
           }
@@ -986,11 +946,7 @@ async function setInterfaceMAC(device, mac, port, nmOptions = null) {
         // Enable adapter
         const enableCommand = `$ErrorActionPreference = 'Stop'; try { Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false -ErrorAction Stop } catch { Write-Error $_.Exception.Message; exit 1 }`;
         try {
-          execWithTimeout(
-            `powershell -Command "${enableCommand}"`,
-            { shell: true },
-            30000
-          );
+          runPowerShell(enableCommand, 30000);
         } catch (err) {
           const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message);
           throw new NetworkError(
@@ -1079,10 +1035,12 @@ function randomize(localAdmin) {
   // http://www.wikihow.com/Change-a-Computer's-Mac-Address-in-Windows
   const windowsPrefixes = ["D2", "D6", "DA", "DE"];
 
-  const vendor = vendors[random(0, vendors.length - 1)];
+  // Copy vendor array to avoid mutating the shared vendors list
+  const vendor = vendors[random(0, vendors.length - 1)].slice();
 
   if (process.platform === "win32") {
-    // Parse hex string to number (fix for Windows randomize bug)
+    // Windows needs the second character of the first byte to be
+    // 2, 6, A, or E for locally administered addresses
     vendor[0] = parseInt(windowsPrefixes[random(0, 3)], 16);
   }
 
