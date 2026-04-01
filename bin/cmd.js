@@ -627,10 +627,10 @@ async function setMACAddress(device, mac, port, operation = "set") {
     // On Windows, check if running as administrator
     try {
       const output = cp
-        .execSync(
-          'powershell -Command "[Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent() | Select-Object -ExpandProperty IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)"',
-          { stdio: "pipe", shell: true }
-        )
+        .execFileSync("powershell", [
+          "-NoProfile", "-NonInteractive", "-Command",
+          "[Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent() | Select-Object -ExpandProperty IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)"
+        ], { stdio: "pipe" })
         .toString()
         .trim()
         .toLowerCase();

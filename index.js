@@ -52,7 +52,7 @@ function validateMAC(mac) {
 }
 
 const cp = require("child_process");
-const quote = require("shell-quote").quote;
+// shell-quote no longer needed — all commands now use execFileSync with argument arrays
 const zeroFill = require("zero-fill");
 
 /**
@@ -114,31 +114,6 @@ function escapePowerShell(str) {
  */
 function sanitizeInterfaceName(iface) {
   return utils.sanitizeInterfaceName(iface);
-}
-
-/**
- * Executes a command with timeout and better error handling
- * @param {string} command
- * @param {Object} options
- * @param {number} timeout
- * @return {string}
- */
-function execWithTimeout(command, options = {}, timeout = 30000) {
-  try {
-    return cp.execSync(command, {
-      ...options,
-      timeout: timeout,
-      maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-    }).toString();
-  } catch (err) {
-    if (err.signal === "SIGTERM") {
-      throw new NetworkError(
-        `Command timed out after ${timeout}ms: ${command.substring(0, 50)}...`,
-        ["Try again with a slower network connection", "Check if the interface is busy"]
-      );
-    }
-    throw err;
-  }
 }
 
 /**
@@ -262,7 +237,7 @@ function findInterfacesDarwin(targets) {
   // - the device associated with this port, if any,
   // - the MAC address, if any, otherwise 'N/A'
 
-  let output = cp.execSync("networksetup -listallhardwareports").toString();
+  let output = cp.execFileSync("networksetup", ["-listallhardwareports"]).toString();
 
   const details = [];
   while (true) {
@@ -319,11 +294,11 @@ function findInterfacesLinux(targets) {
   // Use modern `ip link` command instead of deprecated `ifconfig`
   let output;
   try {
-    output = cp.execSync("ip -o link show", { stdio: "pipe" }).toString();
+    output = cp.execFileSync("ip", ["-o", "link", "show"], { stdio: "pipe" }).toString();
   } catch (err) {
     // Fallback to ifconfig if ip command is not available
     try {
-      output = cp.execSync("ifconfig", { stdio: "pipe" }).toString();
+      output = cp.execFileSync("ifconfig", [], { stdio: "pipe" }).toString();
       return findInterfacesLinuxLegacy(output, targets);
     } catch (err2) {
       return [];
@@ -461,7 +436,7 @@ function findInterfacesWin32(targets) {
     }
   } catch (err) {
     // Fallback to ipconfig method if PowerShell fails
-    const output = cp.execSync("ipconfig /all", { stdio: "pipe" }).toString();
+    const output = cp.execFileSync("ipconfig", ["/all"], { stdio: "pipe" }).toString();
     const lines = output.split("\n");
     let it = false;
     
@@ -562,7 +537,7 @@ function getInterfaceMAC(device) {
     let output;
     try {
       output = cp
-        .execSync(quote(["ifconfig", device]), { stdio: "pipe" })
+        .execFileSync("ifconfig", [device], { stdio: "pipe" })
         .toString();
     } catch (err) {
       return null;
@@ -584,7 +559,7 @@ function getInterfaceMAC(device) {
       // Fallback to ipconfig method
       try {
         const output = cp
-          .execSync(`ipconfig /all`, { stdio: "pipe" })
+          .execFileSync("ipconfig", ["/all"], { stdio: "pipe" })
           .toString();
         const regex = new RegExp(
           `adapter ${device.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:[\\s\\S]*?Physical Address[\\s\\S]*?:\\s*([0-9A-F-]+)`,
@@ -663,8 +638,8 @@ async function setInterfaceMAC(device, mac, port, nmOptions = null) {
       // in the brief window after WiFi is powered on but before it connects to a network.
       // We must NOT use ifconfig down as it causes "Network is down" errors.
       try {
-        cp.execSync(quote(["networksetup", "-setairportpower", device, "off"]));
-        cp.execSync(quote(["networksetup", "-setairportpower", device, "on"]));
+        cp.execFileSync("networksetup", ["-setairportpower", device, "off"]);
+        cp.execFileSync("networksetup", ["-setairportpower", device, "on"]);
         // Change MAC immediately in the window before auto-join
         cp.execFileSync("ifconfig", [device, "ether", mac]);
       } catch (err) {
@@ -672,7 +647,7 @@ async function setInterfaceMAC(device, mac, port, nmOptions = null) {
       }
 
       try {
-        cp.execSync(quote(["networksetup", "-detectnewhardware"]));
+        cp.execFileSync("networksetup", ["-detectnewhardware"]);
       } catch (err) {
         // Ignore
       }
