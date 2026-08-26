@@ -1,6 +1,6 @@
 /**
  * Unit tests for NetworkManager detection and device status
- * 
+ *
  * Run with: node test/test-networkmanager.js
  * Run specific tests: node test/test-networkmanager.js --test=parsing
  */
@@ -58,7 +58,7 @@ const tests = {
     console.log('Test 3: Parse mixed device status output')
     const output = FIXTURES.nmcli_device_status_mixed
     const lines = output.split('\n').filter(line => line.trim())
-    
+
     const devices = {}
     for (const line of lines) {
       const parts = line.split(':')
@@ -69,7 +69,7 @@ const tests = {
         }
       }
     }
-    
+
     assert.strictEqual(devices.eth0.managed, true, 'eth0 should be managed')
     assert.strictEqual(devices.wlan0.managed, false, 'wlan0 should not be managed')
     assert.strictEqual(devices.lo.managed, false, 'lo should not be managed')
@@ -123,21 +123,21 @@ const tests = {
 
     try {
       const status = await nm.isNetworkManagerPresent()
-      
+
       console.log(`  NetworkManager present: ${status.present}`)
       console.log(`  NetworkManager running: ${status.running}`)
       console.log(`  Detection method: ${status.method}`)
-      
+
       assert(typeof status.present === 'boolean', 'present should be boolean')
       assert(typeof status.running === 'boolean', 'running should be boolean')
       assert(typeof status.method === 'string', 'method should be string')
-      
+
       if (status.present) {
         console.log('  ✓ NetworkManager is present on this system')
       } else {
         console.log('  ✓ NetworkManager is not present (test environment)')
       }
-      
+
       console.log('\nDetection test completed!\n')
     } catch (err) {
       console.error('  ✗ Detection test failed:', err.message)
@@ -155,24 +155,24 @@ const tests = {
       // Test with a common interface name (might not exist, but should not crash)
       const testInterface = 'eth0'
       const status = await nm.getNMDeviceStatus(testInterface)
-      
+
       console.log(`  Interface: ${testInterface}`)
       console.log(`  Present: ${status.present}`)
       console.log(`  Running: ${status.running}`)
       console.log(`  Managed: ${status.managed}`)
       console.log(`  State: ${status.state}`)
-      
+
       assert(typeof status.present === 'boolean', 'present should be boolean')
       assert(typeof status.running === 'boolean', 'running should be boolean')
       assert(typeof status.managed === 'boolean', 'managed should be boolean')
       assert(typeof status.state === 'string', 'state should be string')
-      
+
       if (status.present && status.running) {
         console.log(`  ✓ Device status retrieved (managed: ${status.managed})`)
       } else {
         console.log('  ✓ Device status check completed (NM not running or interface not found)')
       }
-      
+
       console.log('\nDevice status test completed!\n')
     } catch (err) {
       console.error('  ✗ Device status test failed:', err.message)
@@ -217,13 +217,13 @@ const tests = {
       'wlan0:disconnected:no',
       'lo:unmanaged:no',
       'eth0:connected:yes\nwlan0:disconnected:no',
-      'eth0:connected:yes\n\nwlan0:disconnected:no\n', // with empty lines
+      'eth0:connected:yes\n\nwlan0:disconnected:no\n' // with empty lines
     ]
 
     formats.forEach((format, index) => {
       const lines = format.split('\n').filter(line => line.trim())
       const devices = {}
-      
+
       for (const line of lines) {
         const parts = line.split(':')
         if (parts.length >= 3) {
@@ -233,7 +233,7 @@ const tests = {
           }
         }
       }
-      
+
       assert(typeof devices === 'object', `Format ${index + 1} should parse to object`)
       console.log(`  ✓ Format ${index + 1} parsed correctly (${Object.keys(devices).length} devices)`)
     })

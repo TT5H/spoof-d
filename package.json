@@ -1,13 +1,13 @@
 {
   "name": "spoof-d",
-  "description": "Cross-platform MAC address and DUID spoofing utility for macOS, Windows, and Linux",
-  "version": "0.5.5",
+  "description": "Spoof MAC addresses and DHCPv6 DUIDs from one cross-platform CLI. Windows, macOS and Linux -- with DUID support, so your IPv6 identity changes too, not just layer 2.",
+  "version": "0.6.0",
   "author": "TT5H",
   "engines": {
     "node": ">=12.0.0"
   },
   "bin": {
-    "spoofy": "bin/cmd.js"
+    "spoofd": "bin/cmd.js"
   },
   "files": [
     "index.js",
@@ -16,7 +16,7 @@
     "completions/",
     "LICENSE",
     "README.md",
-    ".spoofyrc.example",
+    ".spoofdrc.example",
     "batch.example.json"
   ],
   "bugs": {
@@ -26,7 +26,7 @@
     "chalk": "^4.1.0",
     "common-tags": "^1.8.0",
     "minimist": "^1.2.5",
-    "ora": "^9.0.0",
+    "ora": "^5.4.1",
     "shell-quote": "^1.7.2",
     "zero-fill": "^2.2.4"
   },
@@ -35,27 +35,28 @@
   },
   "homepage": "https://github.com/TT5H/spoof-d",
   "keywords": [
-    "MAC address",
-    "address",
-    "change",
-    "mac",
-    "macchanger",
-    "modify",
-    "set mac",
-    "spoof",
-    "spoof mac address",
-    "spoofmac",
     "duid",
     "dhcpv6",
-    "ipv6",
+    "duid-spoofing",
+    "ipv6-privacy",
+    "mac-address",
+    "mac-spoofing",
+    "macchanger",
+    "spoof-mac",
+    "spoofd",
+    "windows-mac-address",
+    "privacy",
+    "anonymity",
     "network",
+    "networksetup",
+    "nmcli",
+    "ip-link",
+    "powershell",
+    "cross-platform",
     "macos",
-    "sequoia",
-    "tahoe",
     "windows",
     "linux",
-    "cross-platform",
-    "adapter"
+    "cli"
   ],
   "license": "MIT",
   "main": "index.js",
@@ -65,8 +66,11 @@
   },
   "scripts": {
     "test": "standard",
+    "packaging": "node packaging/generate.js",
+    "test:cli": "node test/test-cli.js",
+    "test:oui": "node test/test-oui.js",
     "test:duid": "node test/test-duid.js",
     "test:nm": "node test/test-networkmanager.js",
-    "test:all": "npm run test:duid && npm run test:nm"
+    "test:all": "npm run test:cli && npm run test:oui && npm run test:duid && npm run test:nm"
   }
 }

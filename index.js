@@ -1,5 +1,5 @@
 /*! spoof. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
-var utils = require("./lib/utils");
+const utils = require('./lib/utils')
 
 module.exports = {
   findInterface,
@@ -9,90 +9,90 @@ module.exports = {
   setInterfaceMAC,
   getInterfaceMAC,
   validateMAC,
-  duid: require("./lib/duid"),
-};
+  duid: require('./lib/duid')
+}
 
 /**
  * Validates a MAC address format
  * @param {string} mac
  * @return {Object} {valid: boolean, normalized: string|null, error: string|null}
  */
-function validateMAC(mac) {
-  if (!mac || typeof mac !== "string") {
+function validateMAC (mac) {
+  if (!mac || typeof mac !== 'string') {
     return {
       valid: false,
       normalized: null,
-      error: "MAC address must be a non-empty string",
-    };
+      error: 'MAC address must be a non-empty string'
+    }
   }
-  
-  const normalized = normalize(mac);
+
+  const normalized = normalize(mac)
   if (!normalized) {
     return {
       valid: false,
       normalized: null,
-      error: "Invalid MAC address format",
-    };
+      error: 'Invalid MAC address format'
+    }
   }
-  
+
   // Check for invalid addresses
-  if (normalized === "00:00:00:00:00:00" || normalized === "FF:FF:FF:FF:FF:FF") {
+  if (normalized === '00:00:00:00:00:00' || normalized === 'FF:FF:FF:FF:FF:FF') {
     return {
       valid: false,
-      normalized: normalized,
-      error: "Cannot be all zeros or broadcast address",
-    };
+      normalized,
+      error: 'Cannot be all zeros or broadcast address'
+    }
   }
-  
+
   return {
     valid: true,
-    normalized: normalized,
-    error: null,
-  };
+    normalized,
+    error: null
+  }
 }
 
-const cp = require("child_process");
+const cp = require('child_process')
 // shell-quote no longer needed — all commands now use execFileSync with argument arrays
-const zeroFill = require("zero-fill");
+const zeroFill = require('zero-fill')
 
 /**
  * Custom error classes for better error handling
  */
-class SpoofyError extends Error {
-  constructor(message, code, suggestions = []) {
-    super(message);
-    this.name = "SpoofyError";
-    this.code = code;
-    this.suggestions = suggestions;
-    Error.captureStackTrace(this, this.constructor);
+class SpoofdError extends Error {
+  constructor (message, code, suggestions = []) {
+    super(message)
+    this.name = 'SpoofdError'
+    this.code = code
+    this.suggestions = suggestions
+    Error.captureStackTrace(this, this.constructor)
   }
 }
 
-class ValidationError extends SpoofyError {
-  constructor(message, suggestions = []) {
-    super(message, "VALIDATION_ERROR", suggestions);
-    this.name = "ValidationError";
+class ValidationError extends SpoofdError {
+  constructor (message, suggestions = []) {
+    super(message, 'VALIDATION_ERROR', suggestions)
+    this.name = 'ValidationError'
   }
 }
 
-class PermissionError extends SpoofyError {
-  constructor(message, suggestions = []) {
-    super(message, "PERMISSION_ERROR", suggestions);
-    this.name = "PermissionError";
+class PermissionError extends SpoofdError {
+  constructor (message, suggestions = []) {
+    super(message, 'PERMISSION_ERROR', suggestions)
+    this.name = 'PermissionError'
   }
 }
 
-class NetworkError extends SpoofyError {
-  constructor(message, suggestions = []) {
-    super(message, "NETWORK_ERROR", suggestions);
-    this.name = "NetworkError";
+class NetworkError extends SpoofdError {
+  constructor (message, suggestions = []) {
+    super(message, 'NETWORK_ERROR', suggestions)
+    this.name = 'NetworkError'
   }
 }
 
-class PlatformError extends SpoofyError {
-  constructor(message, suggestions = []) {
-    super(message, "PLATFORM_ERROR", suggestions);
-    this.name = "PlatformError";
+class PlatformError extends SpoofdError {
+  constructor (message, suggestions = []) {
+    super(message, 'PLATFORM_ERROR', suggestions)
+    this.name = 'PlatformError'
   }
 }
 
@@ -102,8 +102,8 @@ class PlatformError extends SpoofyError {
  * @param {string} str
  * @return {string}
  */
-function escapePowerShell(str) {
-  return utils.escapePowerShell(str);
+function escapePowerShell (str) {
+  return utils.escapePowerShell(str)
 }
 
 /**
@@ -112,8 +112,8 @@ function escapePowerShell(str) {
  * @param {string} iface
  * @return {string}
  */
-function sanitizeInterfaceName(iface) {
-  return utils.sanitizeInterfaceName(iface);
+function sanitizeInterfaceName (iface) {
+  return utils.sanitizeInterfaceName(iface)
 }
 
 /**
@@ -123,68 +123,68 @@ function sanitizeInterfaceName(iface) {
  * @param {number} [timeout=30000] - Timeout in ms
  * @return {string} Command output as string
  */
-function runPowerShell(psCommand, timeout = 30000) {
+function runPowerShell (psCommand, timeout = 30000) {
   try {
-    return cp.execFileSync("powershell", [
-      "-NoProfile", "-NonInteractive", "-Command", psCommand
+    return cp.execFileSync('powershell', [
+      '-NoProfile', '-NonInteractive', '-Command', psCommand
     ], {
-      stdio: "pipe",
-      timeout: timeout,
-      maxBuffer: 10 * 1024 * 1024,
-    }).toString();
+      stdio: 'pipe',
+      timeout,
+      maxBuffer: 10 * 1024 * 1024
+    }).toString()
   } catch (err) {
-    if (err.signal === "SIGTERM") {
+    if (err.signal === 'SIGTERM') {
       throw new NetworkError(
         `PowerShell command timed out after ${timeout}ms`,
-        ["Try again with a slower network connection", "Check if the interface is busy"]
-      );
+        ['Try again with a slower network connection', 'Check if the interface is busy']
+      )
     }
-    throw err;
+    throw err
   }
 }
 
-// sleepSync and retry are now in shared utils module
-var sleepSync = utils.sleepSync;
-var retry = utils.retry;
+// retry lives in the shared utils module
+const retry = utils.retry
+const isPermissionFailure = utils.isPermissionFailure
 
 /**
  * Parses PowerShell error output for better error messages
  * @param {string} errorOutput
  * @return {string}
  */
-function parsePowerShellError(errorOutput) {
-  if (!errorOutput) return "Unknown PowerShell error";
-  
+function parsePowerShellError (errorOutput) {
+  if (!errorOutput) return 'Unknown PowerShell error'
+
   // Try to extract meaningful error messages
-  const errorMatch = errorOutput.match(/Error:\s*(.+?)(?:\r?\n|$)/i);
+  const errorMatch = errorOutput.match(/Error:\s*(.+?)(?:\r?\n|$)/i)
   if (errorMatch) {
-    return errorMatch[1].trim();
+    return errorMatch[1].trim()
   }
-  
+
   // Try to find exception messages
-  const exceptionMatch = errorOutput.match(/Exception:\s*(.+?)(?:\r?\n|$)/i);
+  const exceptionMatch = errorOutput.match(/Exception:\s*(.+?)(?:\r?\n|$)/i)
   if (exceptionMatch) {
-    return exceptionMatch[1].trim();
+    return exceptionMatch[1].trim()
   }
-  
+
   // Return first non-empty line
-  const lines = errorOutput.split(/\r?\n/).filter(line => line.trim());
+  const lines = errorOutput.split(/\r?\n/).filter(line => line.trim())
   if (lines.length > 0) {
-    return lines[0].trim();
+    return lines[0].trim()
   }
-  
-  return errorOutput.trim();
+
+  return errorOutput.trim()
 }
 
 // Regex to validate a MAC address
 // Example: 00-00-00-00-00-00 or 00:00:00:00:00:00 or 000000000000
 const MAC_ADDRESS_RE =
-  /([0-9A-F]{1,2})[:-]?([0-9A-F]{1,2})[:-]?([0-9A-F]{1,2})[:-]?([0-9A-F]{1,2})[:-]?([0-9A-F]{1,2})[:-]?([0-9A-F]{1,2})/i;
+  /([0-9A-F]{1,2})[:-]?([0-9A-F]{1,2})[:-]?([0-9A-F]{1,2})[:-]?([0-9A-F]{1,2})[:-]?([0-9A-F]{1,2})[:-]?([0-9A-F]{1,2})/i
 
 // Regex to validate a MAC address in cisco-style
 // Example: 0123.4567.89ab
 const CISCO_MAC_ADDRESS_RE =
-  /([0-9A-F]{0,4})\.([0-9A-F]{0,4})\.([0-9A-F]{0,4})/i;
+  /([0-9A-F]{0,4})\.([0-9A-F]{0,4})\.([0-9A-F]{0,4})/i
 
 /**
  * Returns the list of interfaces found on this machine as reported by the
@@ -192,221 +192,221 @@ const CISCO_MAC_ADDRESS_RE =
  * @param {Array.<string>|null} targets
  * @return {Array.<Object>}
  */
-function findInterfaces(targets) {
-  if (!targets) targets = [];
+function findInterfaces (targets) {
+  if (!targets) targets = []
 
-  targets = targets.map((target) => target.toLowerCase());
+  targets = targets.map((target) => target.toLowerCase())
 
   try {
-    if (process.platform === "darwin") {
-      return findInterfacesDarwin(targets);
-    } else if (process.platform === "linux") {
-      return findInterfacesLinux(targets);
-    } else if (process.platform === "win32") {
-      return findInterfacesWin32(targets);
+    if (process.platform === 'darwin') {
+      return findInterfacesDarwin(targets)
+    } else if (process.platform === 'linux') {
+      return findInterfacesLinux(targets)
+    } else if (process.platform === 'win32') {
+      return findInterfacesWin32(targets)
     } else {
       throw new Error(
         `Unsupported platform: ${process.platform}. ` +
-        "Supported platforms: darwin (macOS), linux, win32 (Windows)"
-      );
+        'Supported platforms: darwin (macOS), linux, win32 (Windows)'
+      )
     }
   } catch (err) {
     // Provide better error messages
-    if (err.message.includes("spawn") || err.message.includes("ENOENT")) {
-      const suggestions = [];
-      if (process.platform === "linux") {
-        suggestions.push("Install iproute2: sudo apt-get install iproute2 (Debian/Ubuntu) or sudo yum install iproute (RHEL/CentOS)");
-      } else if (process.platform === "win32") {
-        suggestions.push("Ensure PowerShell is installed and available in PATH");
+    if (err.message.includes('spawn') || err.message.includes('ENOENT')) {
+      const suggestions = []
+      if (process.platform === 'linux') {
+        suggestions.push('Install iproute2: sudo apt-get install iproute2 (Debian/Ubuntu) or sudo yum install iproute (RHEL/CentOS)')
+      } else if (process.platform === 'win32') {
+        suggestions.push('Ensure PowerShell is installed and available in PATH')
       }
       throw new PlatformError(
-        `Failed to execute system command. ` +
+        'Failed to execute system command. ' +
         `Platform: ${process.platform}. ` +
         `Error: ${err.message}`,
         suggestions
-      );
+      )
     }
-    throw err;
+    throw err
   }
 }
 
-function findInterfacesDarwin(targets) {
+function findInterfacesDarwin (targets) {
   // Parse the output of `networksetup -listallhardwareports` which gives
   // us 3 fields per port:
   // - the port name,
   // - the device associated with this port, if any,
   // - the MAC address, if any, otherwise 'N/A'
 
-  let output = cp.execFileSync("networksetup", ["-listallhardwareports"]).toString();
+  let output = cp.execFileSync('networksetup', ['-listallhardwareports']).toString()
 
-  const details = [];
+  const details = []
   while (true) {
     const result = /(?:Hardware Port|Device|Ethernet Address): (.+)/.exec(
       output
-    );
+    )
     if (!result || !result[1]) {
-      break;
+      break
     }
-    details.push(result[1]);
-    output = output.slice(result.index + result[1].length);
+    details.push(result[1])
+    output = output.slice(result.index + result[1].length)
   }
 
-  const interfaces = []; // to return
+  const interfaces = [] // to return
 
   // Split the results into chunks of 3 (for our three fields) and yield
   // those that match `targets`.
   for (let i = 0; i < details.length; i += 3) {
-    const port = details[i];
-    const device = details[i + 1];
-    let address = details[i + 2];
+    const port = details[i]
+    const device = details[i + 1]
+    let address = details[i + 2]
 
-    address = MAC_ADDRESS_RE.exec(address.toUpperCase());
+    address = MAC_ADDRESS_RE.exec(address.toUpperCase())
     if (address) {
-      address = normalize(address[0]);
+      address = normalize(address[0])
     }
 
     const it = {
-      address: address,
+      address,
       currentAddress: getInterfaceMAC(device),
-      device: device,
-      port: port,
-    };
+      device,
+      port
+    }
 
     if (targets.length === 0) {
       // Not trying to match anything in particular, return everything.
-      interfaces.push(it);
-      continue;
+      interfaces.push(it)
+      continue
     }
 
     for (let j = 0; j < targets.length; j++) {
-      const target = targets[j];
+      const target = targets[j]
       if (target === port.toLowerCase() || target === device.toLowerCase()) {
-        interfaces.push(it);
-        break;
+        interfaces.push(it)
+        break
       }
     }
   }
 
-  return interfaces;
+  return interfaces
 }
 
-function findInterfacesLinux(targets) {
+function findInterfacesLinux (targets) {
   // Use modern `ip link` command instead of deprecated `ifconfig`
-  let output;
+  let output
   try {
-    output = cp.execFileSync("ip", ["-o", "link", "show"], { stdio: "pipe" }).toString();
+    output = cp.execFileSync('ip', ['-o', 'link', 'show'], { stdio: 'pipe' }).toString()
   } catch (err) {
     // Fallback to ifconfig if ip command is not available
     try {
-      output = cp.execFileSync("ifconfig", [], { stdio: "pipe" }).toString();
-      return findInterfacesLinuxLegacy(output, targets);
+      output = cp.execFileSync('ifconfig', [], { stdio: 'pipe' }).toString()
+      return findInterfacesLinuxLegacy(output, targets)
     } catch (err2) {
-      return [];
+      return []
     }
   }
 
-  const interfaces = [];
-  const lines = output.split("\n");
+  const interfaces = []
+  const lines = output.split('\n')
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    const line = lines[i]
     // Parse: <index>: <name>: <flags> ... link/ether <mac> ...
-    const match = /^\d+:\s+([^:]+):\s+.*?\s+link\/ether\s+([0-9a-f:]+)/i.exec(line);
-    if (!match) continue;
+    const match = /^\d+:\s+([^:]+):\s+.*?\s+link\/ether\s+([0-9a-f:]+)/i.exec(line)
+    if (!match) continue
 
-    const device = match[1].trim();
-    let address = match[2] ? normalize(match[2]) : null;
+    const device = match[1].trim()
+    const address = match[2] ? normalize(match[2]) : null
 
     const it = {
-      address: address,
+      address,
       currentAddress: getInterfaceMAC(device),
-      device: device,
-      port: device, // Linux doesn't have port names like macOS
-    };
+      device,
+      port: device // Linux doesn't have port names like macOS
+    }
 
     if (targets.length === 0) {
-      interfaces.push(it);
-      continue;
+      interfaces.push(it)
+      continue
     }
 
     for (let j = 0; j < targets.length; j++) {
-      const target = targets[j];
+      const target = targets[j]
       if (target === device.toLowerCase()) {
-        interfaces.push(it);
-        break;
+        interfaces.push(it)
+        break
       }
     }
   }
 
-  return interfaces;
+  return interfaces
 }
 
-function findInterfacesLinuxLegacy(output, targets) {
+function findInterfacesLinuxLegacy (output, targets) {
   // Legacy ifconfig parsing (fallback)
-  const details = [];
+  const details = []
   while (true) {
-    const result = /(.*?)HWaddr(.*)/im.exec(output);
+    const result = /(.*?)HWaddr(.*)/im.exec(output)
     if (!result || !result[1] || !result[2]) {
-      break;
+      break
     }
-    details.push(result[1], result[2]);
-    output = output.slice(result.index + result[0].length);
+    details.push(result[1], result[2])
+    output = output.slice(result.index + result[0].length)
   }
 
-  const interfaces = [];
+  const interfaces = []
 
   for (let i = 0; i < details.length; i += 2) {
-    const s = details[i].split(":");
+    const s = details[i].split(':')
 
-    let device, port;
+    let device, port
     if (s.length >= 2) {
-      device = s[0].split(" ")[0];
-      port = s[1].trim();
+      device = s[0].split(' ')[0]
+      port = s[1].trim()
     }
 
-    let address = details[i + 1].trim();
+    let address = details[i + 1].trim()
     if (address) {
-      address = normalize(address);
+      address = normalize(address)
     }
 
     const it = {
-      address: address,
+      address,
       currentAddress: getInterfaceMAC(device),
-      device: device,
-      port: port || device,
-    };
+      device,
+      port: port || device
+    }
 
     if (targets.length === 0) {
-      interfaces.push(it);
-      continue;
+      interfaces.push(it)
+      continue
     }
 
     for (let j = 0; j < targets.length; j++) {
-      const target = targets[j];
+      const target = targets[j]
       if (target === (port || device).toLowerCase() || target === device.toLowerCase()) {
-        interfaces.push(it);
-        break;
+        interfaces.push(it)
+        break
       }
     }
   }
 
-  return interfaces;
+  return interfaces
 }
 
-function findInterfacesWin32(targets) {
+function findInterfacesWin32 (targets) {
   // Use PowerShell Get-NetAdapter for better reliability
-  let interfaces = [];
-  
+  const interfaces = []
+
   try {
-    const psCommand = `Get-NetAdapter | Select-Object Name, InterfaceDescription, MacAddress, Status | ConvertTo-Json -Compress`;
-    const output = runPowerShell(psCommand, 30000).trim();
+    const psCommand = 'Get-NetAdapter | Select-Object Name, InterfaceDescription, MacAddress, Status | ConvertTo-Json -Compress'
+    const output = runPowerShell(psCommand, 30000).trim()
 
     // Parse JSON output
-    const adapters = JSON.parse(output);
-    const adapterArray = Array.isArray(adapters) ? adapters : [adapters];
+    const adapters = JSON.parse(output)
+    const adapterArray = Array.isArray(adapters) ? adapters : [adapters]
 
     for (const adapter of adapterArray) {
-      if (!adapter || !adapter.Name) continue;
+      if (!adapter || !adapter.Name) continue
 
       const it = {
         address: adapter.MacAddress ? normalize(adapter.MacAddress) : null,
@@ -414,107 +414,107 @@ function findInterfacesWin32(targets) {
         device: adapter.Name,
         port: adapter.InterfaceDescription || adapter.Name,
         description: adapter.InterfaceDescription,
-        status: adapter.Status,
-      };
+        status: adapter.Status
+      }
 
       if (targets.length === 0) {
-        interfaces.push(it);
-        continue;
+        interfaces.push(it)
+        continue
       }
 
       for (let j = 0; j < targets.length; j++) {
-        const target = targets[j];
+        const target = targets[j]
         if (
           target === it.port.toLowerCase() ||
           target === it.device.toLowerCase() ||
           (it.description && target === it.description.toLowerCase())
         ) {
-          interfaces.push(it);
-          break;
+          interfaces.push(it)
+          break
         }
       }
     }
   } catch (err) {
     // Fallback to ipconfig method if PowerShell fails
-    const output = cp.execFileSync("ipconfig", ["/all"], { stdio: "pipe" }).toString();
-    const lines = output.split("\n");
-    let it = false;
-    
+    const output = cp.execFileSync('ipconfig', ['/all'], { stdio: 'pipe' }).toString()
+    const lines = output.split('\n')
+    let it = false
+
     for (let i = 0; i < lines.length; i++) {
       // Check if new device
-      let result;
+      let result
       if (lines[i].substr(0, 1).match(/[A-Z]/)) {
         if (it) {
           if (targets.length === 0) {
-            interfaces.push(it);
+            interfaces.push(it)
           } else {
             for (let j = 0; j < targets.length; j++) {
-              const target = targets[j];
+              const target = targets[j]
               if (
                 target === it.port.toLowerCase() ||
                 target === it.device.toLowerCase()
               ) {
-                interfaces.push(it);
-                break;
+                interfaces.push(it)
+                break
               }
             }
           }
         }
 
         it = {
-          port: "",
-          device: "",
-        };
-
-        result = /adapter (.+?):/.exec(lines[i]);
-        if (!result) {
-          continue;
+          port: '',
+          device: ''
         }
 
-        it.device = result[1];
+        result = /adapter (.+?):/.exec(lines[i])
+        if (!result) {
+          continue
+        }
+
+        it.device = result[1]
       }
 
       if (!it) {
-        continue;
+        continue
       }
 
       // Try to find address
-      result = /Physical Address.+?:(.*)/im.exec(lines[i]);
+      result = /Physical Address.+?:(.*)/im.exec(lines[i])
       if (result) {
-        it.address = normalize(result[1].trim());
-        it.currentAddress = it.address;
-        continue;
+        it.address = normalize(result[1].trim())
+        it.currentAddress = it.address
+        continue
       }
 
       // Try to find description
-      result = /description.+?:(.*)/im.exec(lines[i]);
+      result = /description.+?:(.*)/im.exec(lines[i])
       if (result) {
-        it.description = result[1].trim();
-        it.port = it.description || it.device;
-        continue;
+        it.description = result[1].trim()
+        it.port = it.description || it.device
+        continue
       }
     }
-    
+
     // Add the last interface
     if (it) {
       if (targets.length === 0) {
-        interfaces.push(it);
+        interfaces.push(it)
       } else {
         for (let j = 0; j < targets.length; j++) {
-          const target = targets[j];
+          const target = targets[j]
           if (
             target === it.port.toLowerCase() ||
             target === it.device.toLowerCase()
           ) {
-            interfaces.push(it);
-            break;
+            interfaces.push(it)
+            break
           }
         }
       }
     }
   }
 
-  return interfaces;
+  return interfaces
 }
 
 /**
@@ -522,9 +522,9 @@ function findInterfacesWin32(targets) {
  * @param  {string} target
  * @return {Object}
  */
-function findInterface(target) {
-  const interfaces = findInterfaces([target]);
-  return interfaces && interfaces[0];
+function findInterface (target) {
+  const interfaces = findInterfaces([target])
+  return interfaces && interfaces[0]
 }
 
 /**
@@ -532,48 +532,48 @@ function findInterface(target) {
  * interface's hardware MAC address.
  * @return {string}
  */
-function getInterfaceMAC(device) {
-  if (process.platform === "darwin" || process.platform === "linux") {
-    let output;
+function getInterfaceMAC (device) {
+  if (process.platform === 'darwin' || process.platform === 'linux') {
+    let output
     try {
       output = cp
-        .execFileSync("ifconfig", [device], { stdio: "pipe" })
-        .toString();
+        .execFileSync('ifconfig', [device], { stdio: 'pipe' })
+        .toString()
     } catch (err) {
-      return null;
+      return null
     }
 
-    const address = MAC_ADDRESS_RE.exec(output);
-    return address && normalize(address[0]);
-  } else if (process.platform === "win32") {
+    const address = MAC_ADDRESS_RE.exec(output)
+    return address && normalize(address[0])
+  } else if (process.platform === 'win32') {
     // Use PowerShell to get current MAC address
     try {
-      const escapedDevice = escapePowerShell(device);
-      const psCommand = `Get-NetAdapter -Name '${escapedDevice}' | Select-Object -ExpandProperty MacAddress`;
-      const output = runPowerShell(psCommand, 30000).trim();
-      
+      const escapedDevice = escapePowerShell(device)
+      const psCommand = `Get-NetAdapter -Name '${escapedDevice}' | Select-Object -ExpandProperty MacAddress`
+      const output = runPowerShell(psCommand, 30000).trim()
+
       if (output) {
-        return normalize(output);
+        return normalize(output)
       }
     } catch (err) {
       // Fallback to ipconfig method
       try {
         const output = cp
-          .execFileSync("ipconfig", ["/all"], { stdio: "pipe" })
-          .toString();
+          .execFileSync('ipconfig', ['/all'], { stdio: 'pipe' })
+          .toString()
         const regex = new RegExp(
-          `adapter ${device.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:[\\s\\S]*?Physical Address[\\s\\S]*?:\\s*([0-9A-F-]+)`,
-          "i"
-        );
-        const match = regex.exec(output);
+          `adapter ${device.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:[\\s\\S]*?Physical Address[\\s\\S]*?:\\s*([0-9A-F-]+)`,
+          'i'
+        )
+        const match = regex.exec(output)
         if (match && match[1]) {
-          return normalize(match[1]);
+          return normalize(match[1])
         }
       } catch (err2) {
-        return null;
+        return null
       }
     }
-    return null;
+    return null
   }
 }
 
@@ -588,400 +588,402 @@ function getInterfaceMAC(device) {
  * @param {string} mac
  * @param {string=} port
  */
-async function setInterfaceMAC(device, mac, port, nmOptions = null) {
+async function setInterfaceMAC (device, mac, port, nmOptions = null) {
   // Validate MAC address format
-  if (!mac || typeof mac !== "string") {
-    throw new ValidationError("MAC address must be a non-empty string");
+  if (!mac || typeof mac !== 'string') {
+    throw new ValidationError('MAC address must be a non-empty string')
   }
-  
-  const normalizedMac = normalize(mac);
+
+  const normalizedMac = normalize(mac)
   if (!normalizedMac) {
     throw new ValidationError(
       `"${mac}" is not a valid MAC address. ` +
-      "Expected format: XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX",
+      'Expected format: XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX',
       [
-        "Use colons (:) or dashes (-) as separators",
-        "Each byte must be a valid hexadecimal value (00-FF)",
-        "Example: 00:11:22:33:44:55"
+        'Use colons (:) or dashes (-) as separators',
+        'Each byte must be a valid hexadecimal value (00-FF)',
+        'Example: 00:11:22:33:44:55'
       ]
-    );
+    )
   }
 
   // Validate MAC address is not all zeros or broadcast
-  if (normalizedMac === "00:00:00:00:00:00" || normalizedMac === "FF:FF:FF:FF:FF:FF") {
+  if (normalizedMac === '00:00:00:00:00:00' || normalizedMac === 'FF:FF:FF:FF:FF:FF') {
     throw new ValidationError(
       `"${normalizedMac}" is not a valid MAC address (cannot be all zeros or broadcast address)`,
-      ["Generate a random MAC address using: spoofy randomize"]
-    );
+      ['Generate a random MAC address using: spoofd randomize']
+    )
   }
 
   // Validate and sanitize device name to prevent command injection
   try {
-    device = sanitizeInterfaceName(device);
+    device = sanitizeInterfaceName(device)
   } catch (err) {
     throw new ValidationError(
       err.message,
-      ["List available devices using: spoofy list"]
-    );
+      ['List available devices using: spoofd list']
+    )
   }
 
   // Use normalized MAC address
-  mac = normalizedMac;
+  mac = normalizedMac
 
-  const isWirelessPort = port && port.toLowerCase() === "wi-fi";
+  const isWirelessPort = port && port.toLowerCase() === 'wi-fi'
 
-  if (process.platform === "darwin") {
-    let macChangeError = null;
+  if (process.platform === 'darwin') {
+    let macChangeError = null
 
     if (isWirelessPort) {
       // On modern macOS (Sequoia 15.4+, Tahoe 26+), WiFi MAC can only be changed
       // in the brief window after WiFi is powered on but before it connects to a network.
       // We must NOT use ifconfig down as it causes "Network is down" errors.
       try {
-        cp.execFileSync("networksetup", ["-setairportpower", device, "off"]);
-        cp.execFileSync("networksetup", ["-setairportpower", device, "on"]);
+        cp.execFileSync('networksetup', ['-setairportpower', device, 'off'])
+        cp.execFileSync('networksetup', ['-setairportpower', device, 'on'])
         // Change MAC immediately in the window before auto-join
-        cp.execFileSync("ifconfig", [device, "ether", mac]);
+        cp.execFileSync('ifconfig', [device, 'ether', mac])
       } catch (err) {
-        macChangeError = err;
+        macChangeError = err
       }
 
       try {
-        cp.execFileSync("networksetup", ["-detectnewhardware"]);
+        cp.execFileSync('networksetup', ['-detectnewhardware'])
       } catch (err) {
         // Ignore
       }
     } else {
       // Non-WiFi interfaces: standard down/change/up sequence
       try {
-        cp.execFileSync("ifconfig", [device, "down"]);
+        cp.execFileSync('ifconfig', [device, 'down'])
       } catch (err) {
         macChangeError = new Error(
-          "Unable to bring interface down: " + err.message
-        );
+          'Unable to bring interface down: ' + err.message
+        )
       }
 
       if (!macChangeError) {
         try {
-          cp.execFileSync("ifconfig", [device, "ether", mac]);
+          cp.execFileSync('ifconfig', [device, 'ether', mac])
         } catch (err) {
-          macChangeError = err;
+          macChangeError = err
         }
       }
 
       try {
-        cp.execFileSync("ifconfig", [device, "up"]);
+        cp.execFileSync('ifconfig', [device, 'up'])
       } catch (err) {
         if (!macChangeError) {
           macChangeError = new Error(
-            "Unable to bring interface up: " + err.message
-          );
+            'Unable to bring interface up: ' + err.message
+          )
         }
       }
     }
 
     if (macChangeError) {
       // Verify if the change actually took effect
-      const newMac = getInterfaceMAC(device);
+      const newMac = getInterfaceMAC(device)
       if (newMac && newMac.toLowerCase() === mac.toLowerCase()) {
         // Change succeeded despite error
-        return;
+        return
       }
-      
-      throw new NetworkError(
+
+      const MacFailure = isPermissionFailure(macChangeError) ? PermissionError : NetworkError
+      throw new MacFailure(
         `Unable to change MAC address on ${device}: ${macChangeError.message}`,
         [
-          "Ensure you have root privileges (use sudo)",
-          "On macOS, you may need to disconnect from WiFi networks first",
-          "Try disabling and re-enabling the interface manually",
-          "Some network adapters may not support MAC address changes (hardware limitation)"
+          'Ensure you have root privileges (use sudo)',
+          'On macOS, you may need to disconnect from WiFi networks first',
+          'Try disabling and re-enabling the interface manually',
+          'Some network adapters may not support MAC address changes (hardware limitation)'
         ]
-      );
+      )
     }
-    
+
     // Verify the change took effect
-    const newMac = getInterfaceMAC(device);
+    const newMac = getInterfaceMAC(device)
     if (newMac && newMac.toLowerCase() !== mac.toLowerCase()) {
       throw new NetworkError(
         `MAC address change verification failed. Expected ${mac}, but got ${newMac}`,
         [
-          "The change may not have taken effect",
-          "Try running the command again",
-          "On macOS, you may need to reconnect to WiFi after the change"
+          'The change may not have taken effect',
+          'Try running the command again',
+          'On macOS, you may need to reconnect to WiFi after the change'
         ]
-      );
+      )
     }
-  } else if (process.platform === "linux") {
+  } else if (process.platform === 'linux') {
     // Modern Linux support using ip link commands
-    let macChangeError = null;
-    
+    let macChangeError = null
+
     try {
       // Bring interface down
-      cp.execFileSync("ip", ["link", "set", device, "down"]);
+      cp.execFileSync('ip', ['link', 'set', device, 'down'])
     } catch (err) {
       macChangeError = new Error(
-        "Unable to bring interface down: " + err.message
-      );
+        'Unable to bring interface down: ' + err.message
+      )
     }
 
     if (!macChangeError) {
       try {
         // Set MAC address using ip link
-        cp.execFileSync("ip", ["link", "set", device, "address", mac]);
+        cp.execFileSync('ip', ['link', 'set', device, 'address', mac])
       } catch (err) {
-        macChangeError = err;
+        macChangeError = err
       }
     }
 
     try {
       // Bring interface back up
-      cp.execFileSync("ip", ["link", "set", device, "up"]);
+      cp.execFileSync('ip', ['link', 'set', device, 'up'])
     } catch (err) {
       if (!macChangeError) {
         macChangeError = new Error(
-          "Unable to bring interface up: " + err.message
-        );
+          'Unable to bring interface up: ' + err.message
+        )
       }
     }
 
     if (macChangeError) {
       // Verify if the change actually took effect
-      const newMac = getInterfaceMAC(device);
+      const newMac = getInterfaceMAC(device)
       if (newMac && newMac.toLowerCase() === mac.toLowerCase()) {
         // Change succeeded despite error
-        return;
+        return
       }
-      
-      throw new NetworkError(
+
+      const MacFailure = isPermissionFailure(macChangeError) ? PermissionError : NetworkError
+      throw new MacFailure(
         `Unable to change MAC address on ${device}: ${macChangeError.message}`,
         [
-          "Ensure you have root privileges (use sudo)",
-          "Check if the interface is currently in use",
-          "Some network adapters may not support MAC address changes"
+          'Ensure you have root privileges (use sudo)',
+          'Check if the interface is currently in use',
+          'Some network adapters may not support MAC address changes'
         ]
-      );
+      )
     }
-    
+
     // Verify the change took effect
-    const newMac = getInterfaceMAC(device);
+    const newMac = getInterfaceMAC(device)
     if (newMac && newMac.toLowerCase() !== mac.toLowerCase()) {
       throw new NetworkError(
         `MAC address change verification failed. Expected ${mac}, but got ${newMac}`,
         [
-          "The change may not have taken effect",
-          "Try running the command again",
-          "Some adapters require a restart to apply MAC changes"
+          'The change may not have taken effect',
+          'Try running the command again',
+          'Some adapters require a restart to apply MAC changes'
         ]
-      );
+      )
     }
-    
+
     // Handle NetworkManager reconnection if requested
     if (nmOptions && nmOptions.reconnect) {
-      const nm = require("./lib/networkmanager");
+      const nm = require('./lib/networkmanager')
       try {
         // Small delay to ensure MAC change is fully applied
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
+        await new Promise(resolve => setTimeout(resolve, 500))
+
         if (nmOptions.force) {
           // Force reconnect by toggling networking (use with caution)
-          await nm.toggleNMNetworking(false, 20000);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          await nm.toggleNMNetworking(true, 20000);
+          await nm.toggleNMNetworking(false, 20000)
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          await nm.toggleNMNetworking(true, 20000)
         } else {
           // Normal reconnect
-          await nm.reconnectNMDevice(device, 20000);
+          await nm.reconnectNMDevice(device, 20000)
         }
       } catch (err) {
         // Log but don't fail - MAC change succeeded
-        console.warn(`Warning: NetworkManager reconnection failed: ${err.message}`);
-        console.warn("  The MAC address change was successful, but NetworkManager may need manual reconnection.");
+        console.warn(`Warning: NetworkManager reconnection failed: ${err.message}`)
+        console.warn('  The MAC address change was successful, but NetworkManager may need manual reconnection.')
       }
     }
-  } else if (process.platform === "win32") {
+  } else if (process.platform === 'win32') {
     // Windows support using PowerShell and registry
-    let macChangeError = null;
-    
+    let macChangeError = null
+
     // Convert MAC address to Windows format (no colons, no dashes)
-    const macNoSeparators = mac.replace(/[:-]/g, "");
-    
+    const macNoSeparators = mac.replace(/[:-]/g, '')
+
     try {
       // Method 1: Try using PowerShell Set-NetAdapter (Windows 8+)
-      const escapedDevice = escapePowerShell(device);
-      const escapedMac = escapePowerShell(mac);
-      const psCommand = `$ErrorActionPreference = 'Stop'; try { $adapter = Get-NetAdapter -Name '${escapedDevice}' -ErrorAction Stop; if ($adapter) { $adapter | Set-NetAdapter -MacAddress '${escapedMac}' -ErrorAction Stop; Write-Host 'Success' } else { throw 'Adapter not found: ${escapedDevice}' } } catch { Write-Error $_.Exception.Message; exit 1 }`;
+      const escapedDevice = escapePowerShell(device)
+      const escapedMac = escapePowerShell(mac)
+      const psCommand = `$ErrorActionPreference = 'Stop'; try { $adapter = Get-NetAdapter -Name '${escapedDevice}' -ErrorAction Stop; if ($adapter) { $adapter | Set-NetAdapter -MacAddress '${escapedMac}' -ErrorAction Stop; Write-Host 'Success' } else { throw 'Adapter not found: ${escapedDevice}' } } catch { Write-Error $_.Exception.Message; exit 1 }`
       try {
-        runPowerShell(psCommand, 30000);
+        runPowerShell(psCommand, 30000)
       } catch (err) {
-        const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message);
         // Method 2: Fallback to registry method
         // Get adapter registry path
-        const getGuidCommand = `$ErrorActionPreference = 'Stop'; try { Get-NetAdapter -Name '${escapedDevice}' -ErrorAction Stop | Select-Object -ExpandProperty InterfaceGuid } catch { Write-Error $_.Exception.Message; exit 1 }`;
-        let guidOutput;
+        const getGuidCommand = `$ErrorActionPreference = 'Stop'; try { Get-NetAdapter -Name '${escapedDevice}' -ErrorAction Stop | Select-Object -ExpandProperty InterfaceGuid } catch { Write-Error $_.Exception.Message; exit 1 }`
+        let guidOutput
         try {
-          guidOutput = runPowerShell(getGuidCommand, 30000).trim();
+          guidOutput = runPowerShell(getGuidCommand, 30000).trim()
         } catch (err) {
-          const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message);
+          const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message)
           throw new NetworkError(
             `Could not find adapter "${device}": ${errorMsg}`,
             [
-              "List available adapters using: spoofy list",
-              "Ensure the adapter name is correct (case-sensitive)",
-              "Check if the adapter is enabled"
+              'List available adapters using: spoofd list',
+              'Ensure the adapter name is correct (case-sensitive)',
+              'Check if the adapter is enabled'
             ]
-          );
+          )
         }
 
-        if (!guidOutput || guidOutput.toLowerCase().includes("error")) {
+        if (!guidOutput || guidOutput.toLowerCase().includes('error')) {
           throw new NetworkError(
             `Could not find adapter GUID for "${device}"`,
             [
-              "The adapter may not exist or may be disabled",
-              "List available adapters using: spoofy list"
+              'The adapter may not exist or may be disabled',
+              'List available adapters using: spoofd list'
             ]
-          );
+          )
         }
 
         // Disable adapter
-        const disableCommand = `$ErrorActionPreference = 'Stop'; try { Disable-NetAdapter -Name '${escapedDevice}' -Confirm:$false -ErrorAction Stop } catch { Write-Error $_.Exception.Message; exit 1 }`;
+        const disableCommand = `$ErrorActionPreference = 'Stop'; try { Disable-NetAdapter -Name '${escapedDevice}' -Confirm:$false -ErrorAction Stop } catch { Write-Error $_.Exception.Message; exit 1 }`
         try {
-          runPowerShell(disableCommand, 30000);
+          runPowerShell(disableCommand, 30000)
         } catch (err) {
-          const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message);
+          const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message)
           throw new NetworkError(
             `Could not disable adapter "${device}": ${errorMsg}`,
             [
-              "Ensure you have Administrator privileges",
-              "The adapter may be in use by another application"
+              'Ensure you have Administrator privileges',
+              'The adapter may be in use by another application'
             ]
-          );
+          )
         }
 
         // Set MAC address in registry
-        const registryPath = `HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e972-e325-11ce-bfc1-08002be10318}`;
-        const escapedGuid = escapePowerShell(guidOutput);
-        const findGuidCommand = `$ErrorActionPreference = 'Stop'; try { $path = '${registryPath}'; Get-ChildItem -Path $path -ErrorAction Stop | Where-Object { (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).NetCfgInstanceId -eq '${escapedGuid}' } | Select-Object -ExpandProperty PSPath } catch { Write-Error $_.Exception.Message; exit 1 }`;
-        let adapterPath;
+        const registryPath = 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e972-e325-11ce-bfc1-08002be10318}'
+        const escapedGuid = escapePowerShell(guidOutput)
+        const findGuidCommand = `$ErrorActionPreference = 'Stop'; try { $path = '${registryPath}'; Get-ChildItem -Path $path -ErrorAction Stop | Where-Object { (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).NetCfgInstanceId -eq '${escapedGuid}' } | Select-Object -ExpandProperty PSPath } catch { Write-Error $_.Exception.Message; exit 1 }`
+        let adapterPath
         try {
-          adapterPath = runPowerShell(findGuidCommand, 30000).trim();
+          adapterPath = runPowerShell(findGuidCommand, 30000).trim()
         } catch (err) {
           // Re-enable adapter before throwing error
           try {
-            runPowerShell(`Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false`, 10000);
+            runPowerShell(`Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false`, 10000)
           } catch (e) {
             // Ignore re-enable errors
           }
-          const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message);
+          const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message)
           throw new NetworkError(
             `Could not find adapter registry path: ${errorMsg}`,
             [
-              "The adapter may not support MAC address changes",
-              "Try using the Set-NetAdapter method instead"
+              'The adapter may not support MAC address changes',
+              'Try using the Set-NetAdapter method instead'
             ]
-          );
+          )
         }
 
-        if (!adapterPath || adapterPath.toLowerCase().includes("error")) {
+        if (!adapterPath || adapterPath.toLowerCase().includes('error')) {
           // Re-enable adapter before throwing error
           try {
-            runPowerShell(`Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false`, 10000);
+            runPowerShell(`Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false`, 10000)
           } catch (e) {
             // Ignore re-enable errors
           }
           throw new NetworkError(
             `Could not find adapter registry path for "${device}"`,
             [
-              "The adapter may not support MAC address changes via registry",
-              "Try using a different method or adapter"
+              'The adapter may not support MAC address changes via registry',
+              'Try using a different method or adapter'
             ]
-          );
+          )
         }
 
         // Set NetworkAddress registry value
-        const escapedPath = escapePowerShell(adapterPath);
-        const setMacCommand = `$ErrorActionPreference = 'Stop'; try { Set-ItemProperty -Path '${escapedPath}' -Name 'NetworkAddress' -Value '${macNoSeparators}' -ErrorAction Stop } catch { Write-Error $_.Exception.Message; exit 1 }`;
+        const escapedPath = escapePowerShell(adapterPath)
+        const setMacCommand = `$ErrorActionPreference = 'Stop'; try { Set-ItemProperty -Path '${escapedPath}' -Name 'NetworkAddress' -Value '${macNoSeparators}' -ErrorAction Stop } catch { Write-Error $_.Exception.Message; exit 1 }`
         try {
-          runPowerShell(setMacCommand, 30000);
+          runPowerShell(setMacCommand, 30000)
         } catch (err) {
           // Re-enable adapter before throwing error
           try {
-            runPowerShell(`Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false`, 10000);
+            runPowerShell(`Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false`, 10000)
           } catch (e) {
             // Ignore re-enable errors
           }
-          const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message);
+          const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message)
           throw new NetworkError(
             `Could not set MAC address in registry: ${errorMsg}`,
             [
-              "Ensure you have Administrator privileges",
-              "The adapter may not support MAC address changes"
+              'Ensure you have Administrator privileges',
+              'The adapter may not support MAC address changes'
             ]
-          );
+          )
         }
 
         // Enable adapter
-        const enableCommand = `$ErrorActionPreference = 'Stop'; try { Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false -ErrorAction Stop } catch { Write-Error $_.Exception.Message; exit 1 }`;
+        const enableCommand = `$ErrorActionPreference = 'Stop'; try { Enable-NetAdapter -Name '${escapedDevice}' -Confirm:$false -ErrorAction Stop } catch { Write-Error $_.Exception.Message; exit 1 }`
         try {
-          runPowerShell(enableCommand, 30000);
+          runPowerShell(enableCommand, 30000)
         } catch (err) {
-          const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message);
+          const errorMsg = parsePowerShellError(err.stderr ? err.stderr.toString() : err.message)
           throw new NetworkError(
             `Could not re-enable adapter "${device}": ${errorMsg}. ` +
-            "The adapter may need to be enabled manually.",
+            'The adapter may need to be enabled manually.',
             [
-              "Try enabling the adapter manually from Network Settings",
-              "The MAC address may have been changed but adapter is disabled"
+              'Try enabling the adapter manually from Network Settings',
+              'The MAC address may have been changed but adapter is disabled'
             ]
-          );
+          )
         }
       }
     } catch (err) {
-      macChangeError = err;
+      macChangeError = err
     }
 
     if (macChangeError) {
       // Verify if the change actually took effect
-      const newMac = getInterfaceMAC(device);
+      const newMac = getInterfaceMAC(device)
       if (newMac && newMac.toLowerCase() === mac.toLowerCase()) {
         // Change succeeded despite error
-        return;
+        return
       }
-      
+
       const suggestions = [
-        "Ensure you are running as Administrator",
-        "Some network adapters may not support MAC address changes (hardware limitation)",
-        "Try disabling and re-enabling the adapter manually",
-        "Check if the adapter is in use by another application"
-      ];
-      
-      if (macChangeError.message && macChangeError.message.includes("Permission")) {
-        suggestions.unshift("Right-click PowerShell/CMD and select 'Run as Administrator'");
+        'Ensure you are running as Administrator',
+        'Some network adapters may not support MAC address changes (hardware limitation)',
+        'Try disabling and re-enabling the adapter manually',
+        'Check if the adapter is in use by another application'
+      ]
+
+      if (macChangeError.message && macChangeError.message.includes('Permission')) {
+        suggestions.unshift("Right-click PowerShell/CMD and select 'Run as Administrator'")
       }
-      
-      throw new NetworkError(
+
+      const MacFailure = isPermissionFailure(macChangeError) ? PermissionError : NetworkError
+      throw new MacFailure(
         `Unable to change MAC address on "${device}": ${macChangeError.message}`,
         suggestions
-      );
+      )
     }
-    
+
     // Verify the change took effect (with retry for Windows)
-    let newMac;
+    let newMac
     try {
-      newMac = retry(() => getInterfaceMAC(device), 3, 1000);
+      newMac = retry(() => getInterfaceMAC(device), 3, 1000)
     } catch (err) {
       // If we can't verify, assume it worked (better than failing)
-      return;
+      return
     }
-    
+
     if (newMac && newMac.toLowerCase() !== mac.toLowerCase()) {
       throw new NetworkError(
         `MAC address change verification failed. Expected ${mac}, but got ${newMac}`,
         [
-          "The change may not have taken effect",
-          "Try running the command again",
-          "Some adapters require a restart to apply MAC changes",
-          "The adapter may not support MAC address changes"
+          'The change may not have taken effect',
+          'Try running the command again',
+          'Some adapters require a restart to apply MAC changes',
+          'The adapter may not support MAC address changes'
         ]
-      );
+      )
     }
   }
 }
@@ -991,7 +993,7 @@ async function setInterfaceMAC(device, mac, port, nmOptions = null) {
  * @param  {boolean} localAdmin  locally administered address
  * @return {string}
  */
-function randomize(localAdmin) {
+function randomize (localAdmin) {
   // Randomly assign a VM vendor's MAC address prefix, which should
   // decrease chance of colliding with existing device's addresses.
 
@@ -1003,20 +1005,20 @@ function randomize(localAdmin) {
     [0x00, 0x03, 0xff], // Microsoft Hyper-V, Virtual Server, Virtual PC
     [0x00, 0x1c, 0x42], // Parallels
     [0x00, 0x0f, 0x4b], // Virtual Iron 4
-    [0x08, 0x00, 0x27], // Sun Virtual Box
-  ];
+    [0x08, 0x00, 0x27] // Sun Virtual Box
+  ]
 
   // Windows needs specific prefixes sometimes
   // http://www.wikihow.com/Change-a-Computer's-Mac-Address-in-Windows
-  const windowsPrefixes = ["D2", "D6", "DA", "DE"];
+  const windowsPrefixes = ['D2', 'D6', 'DA', 'DE']
 
   // Copy vendor array to avoid mutating the shared vendors list
-  const vendor = vendors[random(0, vendors.length - 1)].slice();
+  const vendor = vendors[random(0, vendors.length - 1)].slice()
 
-  if (process.platform === "win32") {
+  if (process.platform === 'win32') {
     // Windows needs the second character of the first byte to be
     // 2, 6, A, or E for locally administered addresses
-    vendor[0] = parseInt(windowsPrefixes[random(0, 3)], 16);
+    vendor[0] = parseInt(windowsPrefixes[random(0, 3)], 16)
   }
 
   const mac = [
@@ -1025,8 +1027,8 @@ function randomize(localAdmin) {
     vendor[2],
     random(0x00, 0x7f),
     random(0x00, 0xff),
-    random(0x00, 0xff),
-  ];
+    random(0x00, 0xff)
+  ]
 
   if (localAdmin) {
     // Universally administered and locally administered addresses are
@@ -1037,13 +1039,13 @@ function randomize(localAdmin) {
     // significant byte is 02h. The binary is 00000010 and the second
     // least significant bit is 1. Therefore, it is a locally administered
     // address.[3] The bit is 0 in all OUIs.
-    mac[0] |= 2;
+    mac[0] |= 2
   }
 
   return mac
     .map((byte) => zeroFill(2, byte.toString(16)))
-    .join(":")
-    .toUpperCase();
+    .join(':')
+    .toUpperCase()
 }
 
 /**
@@ -1058,62 +1060,62 @@ function randomize(localAdmin) {
  * @param  {string} mac
  * @return {string}
  */
-function normalize(mac) {
-  if (!mac || typeof mac !== "string") {
-    return null;
+function normalize (mac) {
+  if (!mac || typeof mac !== 'string') {
+    return null
   }
-  
+
   // Remove whitespace
-  mac = mac.trim();
-  
+  mac = mac.trim()
+
   if (mac.length === 0) {
-    return null;
+    return null
   }
-  
+
   // Try Cisco format first (e.g., 0123.4567.89ab)
-  let m = CISCO_MAC_ADDRESS_RE.exec(mac);
+  let m = CISCO_MAC_ADDRESS_RE.exec(mac)
   if (m) {
-    const halfwords = m.slice(1);
+    const halfwords = m.slice(1)
     // Validate all halfwords are present
     if (halfwords.length === 3 && halfwords.every(hw => hw && hw.length > 0)) {
       mac = halfwords
         .map((halfword) => {
-          return zeroFill(4, halfword);
+          return zeroFill(4, halfword)
         })
-        .join("");
+        .join('')
       if (mac.length === 12) {
-        return chunk(mac, 2).join(":").toUpperCase();
+        return chunk(mac, 2).join(':').toUpperCase()
       }
     }
   }
 
   // Try standard MAC format (e.g., 00:11:22:33:44:55 or 00-11-22-33-44-55)
-  m = MAC_ADDRESS_RE.exec(mac);
+  m = MAC_ADDRESS_RE.exec(mac)
   if (m) {
-    const bytes = m.slice(1);
+    const bytes = m.slice(1)
     // Validate we have exactly 6 bytes
     if (bytes.length === 6 && bytes.every(byte => byte && byte.length > 0)) {
       const normalized = bytes
         .map((byte) => zeroFill(2, byte))
-        .join(":")
-        .toUpperCase();
-      
+        .join(':')
+        .toUpperCase()
+
       // Final validation: should be exactly 17 characters (6 bytes + 5 colons)
       if (normalized.length === 17) {
-        return normalized;
+        return normalized
       }
     }
   }
-  
-  return null;
+
+  return null
 }
 
-function chunk(str, n) {
-  const arr = [];
+function chunk (str, n) {
+  const arr = []
   for (let i = 0; i < str.length; i += n) {
-    arr.push(str.slice(i, i + n));
+    arr.push(str.slice(i, i + n))
   }
-  return arr;
+  return arr
 }
 
 /**
@@ -1122,6 +1124,16 @@ function chunk(str, n) {
  * @param  {number} max
  * @return {number}
  */
-function random(min, max) {
-  return min + Math.floor(Math.random() * (max - min + 1));
+function random (min, max) {
+  return min + Math.floor(Math.random() * (max - min + 1))
 }
+
+// Part of the public API: callers match on these (or on err.code) to tell a
+// bad argument from a missing privilege. Attached here rather than in the
+// export object at the top of the file, which is evaluated before these
+// class declarations are.
+module.exports.SpoofdError = SpoofdError
+module.exports.ValidationError = ValidationError
+module.exports.PermissionError = PermissionError
+module.exports.NetworkError = NetworkError
+module.exports.PlatformError = PlatformError

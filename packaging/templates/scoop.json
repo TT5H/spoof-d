@@ -1,0 +1,26 @@
+{
+  "version": "{{version}}",
+  "description": "{{description}}",
+  "homepage": "{{homepage}}",
+  "license": "{{license}}",
+  "depends": "nodejs",
+  "url": "{{url}}",
+  "hash": "sha256:{{sha256}}",
+  "installer": {
+    "script": [
+      "npm install -g \"$dir\\package\" --loglevel=error"
+    ]
+  },
+  "uninstaller": {
+    "script": [
+      "npm uninstall -g {{name}} --loglevel=error"
+    ]
+  },
+  "checkver": {
+    "url": "https://registry.npmjs.org/{{name}}/latest",
+    "jsonpath": "$.version"
+  },
+  "autoupdate": {
+    "url": "https://registry.npmjs.org/{{name}}/-/{{name}}-$version.tgz"
+  }
+}

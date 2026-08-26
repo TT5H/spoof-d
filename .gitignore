@@ -29,3 +29,6 @@ coverage/
 # npm
 .npmrc
 
+
+# Generated distribution manifests (packaging/generate.js)
+packaging/dist/

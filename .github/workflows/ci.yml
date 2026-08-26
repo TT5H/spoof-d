@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+
+  test:
+    name: Test (node ${{ matrix.node }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing should not hide the others.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['18', '20', '22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # `npm install`, not `npm ci`: package-lock.json is gitignored.
+      - run: npm install --no-audit --no-fund
+      - run: npm run test:all
+
+  package:
+    # Installing the tarball is the check that would have caught the ESM `ora`
+    # shipped in 0.5.4/0.5.5: a repo-local install can mask what a published
+    # package actually resolves to.
+    name: Install from tarball
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - name: Pack and install globally
+        run: |
+          npm pack
+          npm install -g ./spoof-d-*.tgz
+      - name: Run the installed binary
+        run: |
+          spoofd --version
+          spoofd help
+          spoofd list
+          spoofd validate 00:11:22:33:44:55
+          if spoofd validate not-a-mac; then
+            echo "expected a non-zero exit for an invalid MAC" >&2
+            exit 1
+          fi

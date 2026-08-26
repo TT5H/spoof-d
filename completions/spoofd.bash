@@ -1,10 +1,10 @@
-# Bash completion script for spoofy
+# Bash completion script for spoofd
 # Source this file or add to your .bashrc:
-#   source /path/to/completions/spoofy.bash
+#   source /path/to/completions/spoofd.bash
 # Or install globally:
-#   sudo cp completions/spoofy.bash /etc/bash_completion.d/spoofy
+#   sudo cp completions/spoofd.bash /etc/bash_completion.d/spoofd
 
-_spoofy() {
+_spoofd() {
   local cur prev words cword
   COMPREPLY=()
   cur="${COMP_WORDS[COMP_CWORD]}"
@@ -18,7 +18,7 @@ _spoofy() {
   local duid_commands="list show randomize set sync restore reset generate original help"
   
   # Options
-  local options="--wifi --local --verbose -V --json -j --version -v --help -h"
+  local options="--wifi --local --verbose -V --json -j --update --version -v --help -h"
   
   # DUID options
   local duid_options="--type --interface -i"
@@ -45,8 +45,8 @@ _spoofy() {
         if [[ "${prev}" == "--interface" ]] || [[ "${prev}" == "-i" ]] || [[ ${COMP_CWORD} -eq 3 ]]; then
           # Try to get interface names from system
           local interfaces
-          if command -v spoofy >/dev/null 2>&1; then
-            interfaces=$(spoofy list --json 2>/dev/null | grep -o '"device":"[^"]*"' | cut -d'"' -f4 2>/dev/null | tr '\n' ' ')
+          if command -v spoofd >/dev/null 2>&1; then
+            interfaces=$(spoofd list --json 2>/dev/null | grep -o '"device":"[^"]*"' | cut -d'"' -f4 2>/dev/null | tr '\n' ' ')
           fi
           if [[ -n "${interfaces}" ]]; then
             COMPREPLY=($(compgen -W "${interfaces}" -- "${cur}"))
@@ -84,8 +84,8 @@ _spoofy() {
       elif [[ ${COMP_CWORD} -ge 3 ]]; then
         # Interface name completion
         local interfaces
-        if command -v spoofy >/dev/null 2>&1; then
-          interfaces=$(spoofy list --json 2>/dev/null | grep -o '"device":"[^"]*"' | cut -d'"' -f4 2>/dev/null | tr '\n' ' ')
+        if command -v spoofd >/dev/null 2>&1; then
+          interfaces=$(spoofd list --json 2>/dev/null | grep -o '"device":"[^"]*"' | cut -d'"' -f4 2>/dev/null | tr '\n' ' ')
         fi
         if [[ -n "${interfaces}" ]]; then
           COMPREPLY=($(compgen -W "${interfaces}" -- "${cur}"))
@@ -100,8 +100,8 @@ _spoofy() {
         COMPREPLY=($(compgen -W "${options}" -- "${cur}"))
       else
         local interfaces
-        if command -v spoofy >/dev/null 2>&1; then
-          interfaces=$(spoofy list --json 2>/dev/null | grep -o '"device":"[^"]*"' | cut -d'"' -f4 2>/dev/null | tr '\n' ' ')
+        if command -v spoofd >/dev/null 2>&1; then
+          interfaces=$(spoofd list --json 2>/dev/null | grep -o '"device":"[^"]*"' | cut -d'"' -f4 2>/dev/null | tr '\n' ' ')
         fi
         if [[ -n "${interfaces}" ]]; then
           COMPREPLY=($(compgen -W "${interfaces}" -- "${cur}"))
@@ -145,4 +145,4 @@ _spoofy() {
   return 0
 }
 
-complete -F _spoofy spoofy
+complete -F _spoofd spoofd

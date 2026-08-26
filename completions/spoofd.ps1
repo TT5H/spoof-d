@@ -1,10 +1,10 @@
-# PowerShell completion script for spoofy
+# PowerShell completion script for spoofd
 # Add to your PowerShell profile ($PROFILE):
-#   . /path/to/completions/spoofy.ps1
+#   . /path/to/completions/spoofd.ps1
 # Or install globally:
-#   Copy to: $PSHOME\Modules\spoofy\spoofy.ps1
+#   Copy to: $PSHOME\Modules\spoofd\spoofd.ps1
 
-Register-ArgumentCompleter -Native -CommandName spoofy -ScriptBlock {
+Register-ArgumentCompleter -Native -CommandName spoofd -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
 
     $commands = @(
@@ -19,7 +19,7 @@ Register-ArgumentCompleter -Native -CommandName spoofy -ScriptBlock {
     )
 
     $options = @(
-        '--wifi', '--local', '--verbose', '-V', '--json', '-j',
+        '--wifi', '--local', '--verbose', '-V', '--json', '-j', '--update',
         '--version', '-v', '--help', '-h'
     )
 
@@ -36,7 +36,7 @@ Register-ArgumentCompleter -Native -CommandName spoofy -ScriptBlock {
     # Helper function to get network interfaces
     function Get-Interfaces {
         try {
-            $output = spoofy list --json 2>$null | ConvertFrom-Json
+            $output = spoofd list --json 2>$null | ConvertFrom-Json
             if ($output.interfaces) {
                 return $output.interfaces | ForEach-Object { $_.device }
             }

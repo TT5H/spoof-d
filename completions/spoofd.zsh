@@ -1,13 +1,13 @@
-# Zsh completion script for spoofy
+# Zsh completion script for spoofd
 # Add to your .zshrc:
 #   fpath=(/path/to/completions $fpath)
 #   autoload -U compinit && compinit
 # Or install globally:
-#   sudo cp completions/spoofy.zsh /usr/local/share/zsh/site-functions/_spoofy
+#   sudo cp completions/spoofd.zsh /usr/local/share/zsh/site-functions/_spoofd
 
-#compdef spoofy
+#compdef spoofd
 
-_spoofy() {
+_spoofd() {
   local -a commands duid_commands options duid_options
 
   commands=(
@@ -46,6 +46,7 @@ _spoofy() {
     '--verbose:Show verbose output'
     '-V:Show verbose output'
     '--json:Output results in JSON format'
+    '--update:Refresh the cached IEEE OUI registry'
     '-j:Output results in JSON format'
     '--version:Show version'
     '-v:Show version'
@@ -146,8 +147,8 @@ _spoofy() {
 
 _get_interfaces() {
   local -a interfaces
-  if command -v spoofy >/dev/null 2>&1; then
-    interfaces=(${(f)"$(spoofy list --json 2>/dev/null | grep -o '"device":"[^"]*"' | cut -d'"' -f4 2>/dev/null)"})
+  if command -v spoofd >/dev/null 2>&1; then
+    interfaces=(${(f)"$(spoofd list --json 2>/dev/null | grep -o '"device":"[^"]*"' | cut -d'"' -f4 2>/dev/null)"})
   fi
   if (( ${#interfaces} > 0 )); then
     _describe 'interface' interfaces
@@ -156,4 +157,4 @@ _get_interfaces() {
   fi
 }
 
-_spoofy "$@"
+_spoofd "$@"
